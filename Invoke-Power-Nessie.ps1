@@ -38,7 +38,7 @@
    -Elasticsearch_Api_Key "redacted"
 
 .EXAMPLE
-   .\Invoke-NessusTo-Elastic.ps1 -Nessus_URL "https://127.0.0.1:8834" -Nessus_File_Download_Location "C:\Nessus" -Nessus_Access_Key "redacted" -Nessus_Secret_Key "redacted" -Nessus_Source_Folder_Name "My Scans" -Nessus_Archive_Folder_Name "Archive-Ingested" -Export_Scans_From_Today "false" -Export_Day "01/11/2021" -Export_Custom_Extended_File_Name_Attribute "_scanner1" -Elasticsearch_URL "http://127.0.0.1:9200" -Elasticsearch_Index_Name "logs-nessus.vulnerability" -Elasticsearch_Api_Key "redacted"
+   .\Invoke-Power-Nessie.ps1 -Nessus_URL "https://127.0.0.1:8834" -Nessus_File_Download_Location "C:\Nessus" -Nessus_Access_Key "redacted" -Nessus_Secret_Key "redacted" -Nessus_Source_Folder_Name "My Scans" -Nessus_Archive_Folder_Name "Archive-Ingested" -Export_Scans_From_Today "false" -Export_Day "01/11/2021" -Export_Custom_Extended_File_Name_Attribute "_scanner1" -Elasticsearch_URL "http://127.0.0.1:9200" -Elasticsearch_Index_Name "logs-nessus.vulnerability" -Elasticsearch_Api_Key "redacted"
 #>
 
 Param (
