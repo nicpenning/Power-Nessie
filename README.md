@@ -1,10 +1,18 @@
-# Nessus-ES
+# Power-Nessie
+<img src="https://github.com/nicpenning/Power-Nessie/assets/5582679/2173ff86-7f18-4f00-b4c7-650e8ffdc35a" alt="drawing" width="600" align="right"/>
 
-An update is lurking...
-![👀](https://github.com/nicpenning/Nessus-ES/assets/5582679/1a23deda-9a00-4ec4-9d99-013b7572aa91)
+Ingest .nessus files from Tenable's Nessus scanner  into ElasticSearch.
 
+#### 🚀 Why the new repo?
+This project has taken on it's own form due to the major changes from the original work: [iwikmai/Nessus-ES](https://github.com/iwikmai/Nessus-ES). A huge thanks to the original creator of Nessus-ES as it has given me the foundation to begin learning how to ingest data into the Elastic stack programmatically. Thank you! 
 
-Ingest .nessus files from Tenable's Nessus scanner directly into ElasticSearch with most of the ECS mappings.
+The old project that I had forked and made mayn changes to is now read-only and will eventually be deleted [nicpenning/Nessus-ES](https://github.com/nicpenning/Nessus-ES). 
+
+This new project comes with some new changes such as bug fixes, pipeline/mapping updates, and the new ability to do patch summary from previously ingested Nessus scan data.
+
+Power-Nessie : A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into manageable way.
+
+As always, feel free to post issues / questions in this project to make it even better. Enjoy!
 
 ```mermaid
   sequenceDiagram
@@ -15,9 +23,10 @@ Ingest .nessus files from Tenable's Nessus scanner directly into ElasticSearch w
 ```
 
 With some careful setup of your Elastic stack and a little PowerShell you can turn your .nessus files into this:
-![image](https://github.com/nicpenning/Nessus-ES/assets/5582679/746d143d-ff1a-4077-82c2-03e229f59bbf)
+![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/de61836f-8453-4f5c-88f4-2a6b2f7deeb1)
 
-The Nessus-ES project is a simplified way of taking .nessus files and ingesting them into Elastic using PowerShell on Windows, Mac, or Linux.
+
+The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elastic using PowerShell on Windows, Mac, or Linux.
 
 Requirements
 * Functioning Elastic Stack (7.0+, 8.12.1 Latest Tested)
@@ -25,13 +34,13 @@ Requirements
 * .nessus File(s) Exported (Script included to export these files!)
 
 Script includes a Menu to help you through how you would like to use this tool:
-![image](https://github.com/nicpenning/Nessus-ES/assets/5582679/989727d5-65ee-49fd-9dd9-8e74724fd75e)
+![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/c84c2f45-ec6f-4ba4-bc03-d0da04b5c3eb)
 
 ## Now
 - [X] Index Template (How To)
 - [X] Index Pattern, Searches, Visualizations, and Dashboards
 - [X] ECS coverage across as many fields as possible
-- [X] Documentation ([Wiki](https://github.com/nicpenning/Nessus-ES/wiki/Overview))
+- [X] Documentation ([Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview))
 - [X] Automated Nessus File Download Script
 - [X] Automated Elasticsearch Ingest
 - [X] Setup Script (Template, Objects, API, etc..)
@@ -41,9 +50,8 @@ Script includes a Menu to help you through how you would like to use this tool:
 - [ ] Compare Scans (New Data Stream)
 - [ ] Automate/Implement Latest CISA KEVs ([Feature Request](https://github.com/nicpenning/Nessus-ES/issues/13))
 
-## Automated or Manual Download and Ingest capability - Check the [Wiki](https://github.com/nicpenning/Nessus-ES/wiki/Overview)!
+## Automated or Manual Download and Ingest capability - Check the [Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview)!
 Invoke-NessusTo-Elastic.ps1
 
 ## Full dashboard preview
-https://github.com/nicpenning/Nessus-ES/assets/5582679/448505f5-7991-4554-b199-412dd5351329
-
+https://github.com/nicpenning/Power-Nessie/assets/5582679/8fcc5db3-7f28-4410-b796-6d89f339bf6b
