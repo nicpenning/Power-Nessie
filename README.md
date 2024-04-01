@@ -3,14 +3,15 @@
 
 Ingest .nessus files from Tenable's Nessus scanner  into ElasticSearch.
 
-#### 🚀 Why the new repo?
+#### ❔ Why the new repo?
 This project has taken on it's own form due to the major changes from the original work: [iwikmai/Nessus-ES](https://github.com/iwikmai/Nessus-ES). A huge thanks to the original creator of Nessus-ES as it has given me the foundation to begin learning how to ingest data into the Elastic stack programmatically. Thank you! 
 
 The old project that I had forked and made mayn changes to is now read-only and will eventually be deleted [nicpenning/Nessus-ES](https://github.com/nicpenning/Nessus-ES). 
 
 This new project comes with some new changes such as bug fixes, pipeline/mapping updates, and the new ability to do patch summary from previously ingested Nessus scan data.
 
-Power-Nessie : A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into manageable way.
+#### ⚡Power-Nessie🦕
+A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into manageable way.
 
 As always, feel free to post issues / questions in this project to make it even better. Enjoy!
 
@@ -40,7 +41,7 @@ Script includes a Menu to help you through how you would like to use this tool:
 - [X] Index Template (How To)
 - [X] Index Pattern, Searches, Visualizations, and Dashboards
 - [X] ECS coverage across as many fields as possible
-- [X] Documentation ([Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview))
+- [ ] Documentation ([Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview))
 - [X] Automated Nessus File Download Script
 - [X] Automated Elasticsearch Ingest
 - [X] Setup Script (Template, Objects, API, etc..)
