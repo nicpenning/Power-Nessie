@@ -35,7 +35,7 @@ Requirements
 * .nessus File(s) Exported (Script included to export these files!)
 
 Script includes a Menu to help you through how you would like to use this tool:
-![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/c84c2f45-ec6f-4ba4-bc03-d0da04b5c3eb)
+![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/ae5e7d56-4d2e-4024-aa1e-b0b847811687)
 
 ## Now
 - [X] Index Template (How To)
