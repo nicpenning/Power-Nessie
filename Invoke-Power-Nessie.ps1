@@ -45,7 +45,7 @@
     -Remote_Elasticsearch_Index_Name = "logs-nessus.vulnerability-summary",
     -Remote_Elasticsearch_Api_Key "redacted"
     -Execute_Patch_Summarization "true"
-    -Kibana_URL ""
+    -Kibana_URL "http://127.0.0.1:5601"
     -Export_PDF_URL ""
     -Export_CSV_URL ""
     -Email_From ""
@@ -462,6 +462,7 @@ Begin{
 
         $ErrorActionPreference = 'Stop'
         $nessus = [xml]''
+        Write-Host "Loading the file $Nessus_XML_File, please wait..." -ForegroundColor Green
         $nessus.Load($Nessus_XML_File)
 
         #Elastic Instance (Hard code values here)
@@ -1508,7 +1509,6 @@ Begin{
         # Store missing results into a variable to search again later
         $global:currentVulns = $compareResults[1]
     }
-
 
     function customExcludeFilterByScan {
         param (
