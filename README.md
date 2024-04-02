@@ -1,4 +1,4 @@
-# Power-Nessie
+# ⚡Power-Nessie🦕
 <img src="https://github.com/nicpenning/Power-Nessie/assets/5582679/2173ff86-7f18-4f00-b4c7-650e8ffdc35a" alt="drawing" width="600" align="right"/>
 
 Ingest .nessus files from Tenable's Nessus scanner  into ElasticSearch.
