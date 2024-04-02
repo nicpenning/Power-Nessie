@@ -52,7 +52,7 @@ Script includes a Menu to help you through how you would like to use this tool:
 - [ ] Automate/Implement Latest CISA KEVs ([Feature Request](https://github.com/nicpenning/Nessus-ES/issues/13))
 
 ## Automated or Manual Download and Ingest capability - Check the [Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview)!
-Invoke-NessusTo-Elastic.ps1
+Invoke-Power-Nessie.ps1
 
 ## Full dashboard preview
 https://github.com/nicpenning/Power-Nessie/assets/5582679/8fcc5db3-7f28-4410-b796-6d89f339bf6b
