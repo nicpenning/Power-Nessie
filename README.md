@@ -30,7 +30,7 @@ With some careful setup of your Elastic stack and a little PowerShell you can tu
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elastic using PowerShell on Windows, Mac, or Linux.
 
 Requirements
-* Functioning Elastic Stack (7.0+, 8.12.1 Latest Tested)
+* Functioning Elastic Stack (7.0+, 8.13.0 Latest Tested)
 * PowerShell 7.0+ (7.4.1 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
