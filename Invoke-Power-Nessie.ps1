@@ -1597,7 +1597,11 @@ Begin{
         # Force lookback time in days to be an integer for iterations use case
         $Look_Back_Time_In_Days = [int]$Look_Back_Time_In_Days
         $Look_Back_Iterations = [int]$Look_Back_Iterations
-        $Elasticsearch_Custom_Filter = customExcludeFilterByScan -scansToFilter $Elasticsearch_Scan_Filter -scanFilterType $Elasticsearch_Scan_Filter_Type
+        if($null -ne $Elasticsearch_Scan_Filter){
+            $Elasticsearch_Custom_Filter = customExcludeFilterByScan -scansToFilter $Elasticsearch_Scan_Filter -scanFilterType $Elasticsearch_Scan_Filter_Type
+        }else{
+            $Elasticsearch_Custom_Filter = $null
+        }
 
         Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
 
