@@ -1,0 +1,7 @@
+{
+  "match": {
+    "indices": ".ds-logs-cisa_kevs.vulnerability-*",
+    "match_field": "vulnerability.id",
+    "enrich_fields": ["cisa_kev.vulnerability.date_added", "cisa_kev.vulnerability.due_date", "cisa_kev.vulnerability.known_ransomware_campaign_use", "cisa_kev.vulnerability.name", "cisa_kev.vulnerability.notes","cisa_kev.vulnerability.product","cisa_kev.vulnerability.required_action","cisa_kev.vulnerability.vendor_project"]
+  }
+}
