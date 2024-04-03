@@ -45,7 +45,7 @@
     -Remote_Elasticsearch_Index_Name = "logs-nessus.vulnerability-summary",
     -Remote_Elasticsearch_Api_Key "redacted"
     -Execute_Patch_Summarization "true"
-    -Kibana_URL ""
+    -Kibana_URL "http://127.0.0.1:5601"
     -Export_PDF_URL ""
     -Export_CSV_URL ""
     -Email_From ""
@@ -178,8 +178,8 @@ Begin{
     $option3 = "3. Ingest all Nessus files from a specified directory into Elasticsearch."
     $option4 = "4. Export and Ingest Nessus files into Elasticsearch (Optionally execute Patch summarization upon completion)."
     $option5 = "5. Purge processed hashes list (remove list of what files have already been processed)."
-    $option6 = "6. Compare scan data between scans and export results into Elasticsearch. (Patch summarization)"
-    $option7 = "7. Export PDF or CSV Report from Kibana dashboard and then send via Email. (Advanced Options - Copy POST URL)"
+    $option6 = "6. Compare scan data between scans and export results into Elasticsearch (Patch summarization)."
+    $option7 = "7. Export PDF or CSV Report from Kibana dashboard and then send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
     $version = "`nVersion 0.10.0"
@@ -462,6 +462,7 @@ Begin{
 
         $ErrorActionPreference = 'Stop'
         $nessus = [xml]''
+        Write-Host "Loading the file $Nessus_XML_File, please wait..." -ForegroundColor Green
         $nessus.Load($Nessus_XML_File)
 
         #Elastic Instance (Hard code values here)
@@ -1509,7 +1510,6 @@ Begin{
         $global:currentVulns = $compareResults[1]
     }
 
-
     function customExcludeFilterByScan {
         param (
             $scansToFilter,
@@ -1597,7 +1597,11 @@ Begin{
         # Force lookback time in days to be an integer for iterations use case
         $Look_Back_Time_In_Days = [int]$Look_Back_Time_In_Days
         $Look_Back_Iterations = [int]$Look_Back_Iterations
-        $Elasticsearch_Custom_Filter = customExcludeFilterByScan -scansToFilter $Elasticsearch_Scan_Filter -scanFilterType $Elasticsearch_Scan_Filter_Type
+        if($null -ne $Elasticsearch_Scan_Filter){
+            $Elasticsearch_Custom_Filter = customExcludeFilterByScan -scansToFilter $Elasticsearch_Scan_Filter -scanFilterType $Elasticsearch_Scan_Filter_Type
+        }else{
+            $Elasticsearch_Custom_Filter = $null
+        }
 
         Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
 
