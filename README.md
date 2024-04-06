@@ -1,7 +1,7 @@
 # ⚡Power-Nessie🦕
 <img src="https://github.com/nicpenning/Power-Nessie/assets/5582679/2173ff86-7f18-4f00-b4c7-650e8ffdc35a" alt="drawing" width="600" align="right"/>
 
-Ingest .nessus files from Tenable's Nessus scanner  into ElasticSearch.
+Ingest .nessus files from Tenable's Nessus scanner  into Elasticsearch.
 
 #### ❔ Why the new repo?
 This project has taken on it's own form due to the major changes from the original work: [iwikmai/Nessus-ES](https://github.com/iwikmai/Nessus-ES). A huge thanks to the original creator of Nessus-ES as it has given me the foundation to begin learning how to ingest data into the Elastic stack programmatically. Thank you! 
@@ -27,7 +27,7 @@ With some careful setup of your Elastic stack and a little PowerShell you can tu
 ![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/de61836f-8453-4f5c-88f4-2a6b2f7deeb1)
 
 
-The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elastic using PowerShell on Windows, Mac, or Linux.
+The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
 
 Requirements
 * Functioning Elastic Stack (7.0+, 8.13.0 Latest Tested)
