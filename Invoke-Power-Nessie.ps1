@@ -101,9 +101,9 @@ Param (
     # Add Elasticsearch API key to automate Nessus import
     [Parameter(Mandatory=$false)]
     $Elasticsearch_Api_Key = $null,
-    # Add Kibana URL for setup or generating Kibana reports
+    # Add Kibana URL for setup. (default - https://127.0.0.1:5601)
     [Parameter(Mandatory=$false)]
-    $Kibana_URL = $null,
+    $Kibana_URL = "https://127.0.0.1:5601",
     # Add POST URL to call generation of PDF from outside Kibana(Share->PDF Reports->Advanced options->Copy POST Url)
     [Parameter(Mandatory=$false)]
     $Export_PDF_URL = $null,
@@ -151,17 +151,16 @@ Param (
     # If you don't supply these variables then the source index name, url, etc. are used.
     # Add Remote Elasticsearch URL to automate Nessus import (default - https://127.0.0.1:9200)
     [Parameter(Mandatory=$false)]
-    $Remote_Elasticsearch_URL = $Elasticsearch_URL,
+    $Remote_Elasticsearch_URL = $null,
     # Add Remote Elasticsearch Index Name. Adds -summary as a different data stream not to confuse with vulnerability scan data. Also great for index lifecycle management.
     [Parameter(Mandatory=$false)]
-    $Remote_Elasticsearch_Index_Name = "$Elasticsearch_Index_Name-summary",
+    $Remote_Elasticsearch_Index_Name = $null,
     # Add Remote Elasticsearch API key to ingest summary results into.
     [Parameter(Mandatory=$false)]
-    $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key,
+    $Remote_Elasticsearch_Api_Key = $null,
     # Optionally execute Patch summarization upon completion of automated export and ingest.
     [Parameter(Mandatory=$false)]
     $Execute_Patch_Summarization = "false"
-
 )
 
 Begin{
@@ -171,13 +170,54 @@ Begin{
         Write-Host "Old version of PowerShell detected $($PSVersionTable.PSVersion.Major). Please install PowerShell 7+. Exiting."Write-Host "No scans found." -ForegroundColor Red
         Exit
     }
+    # Check for configuration.json file to load configuration settings and populate them all. This will override any arguments passed in for the command line.
+    try{
+        $configurationSettings = Get-Content ./configuration.json | ConvertFrom-Json
+        $configurationSettingsCount = $($configurationSettings.PSObject.Properties | Where-Object {$_.MemberType -eq "NoteProperty" -and $_.Value -ne $null}).count
+        if($configurationSettingsCount -gt 0){
+            Write-Host "Configuration settings ($configurationSettingsCount) found in $(Get-Item configuration.json) file." -ForegroundColor Green
+        }
+
+        # Store all variables from the configuration file inside of variables to be used later in the script and make sure not to null out the current variables.
+        if($null -ne $configurationSettings.Nessus_URL){$Nessus_URL = $configurationSettings.Nessus_URL}
+        if($null -ne $configurationSettings.Nessus_File_Download_Location){$Nessus_File_Download_Location = $configurationSettings.Nessus_File_Download_Location}
+        if($null -ne $configurationSettings.Nessus_XML_File){$Nessus_XML_File = $configurationSettings.Nessus_XML_File}
+        if($null -ne $configurationSettings.Nessus_Access_Key){$Nessus_Access_Key = $configurationSettings.Nessus_Access_Key}
+        if($null -ne $configurationSettings.Nessus_Secret_Key){$Nessus_Secret_Key = $configurationSettings.Nessus_Secret_Key}
+        if($null -ne $configurationSettings.Nessus_Source_Folder_Name){$Nessus_Source_Folder_Name = $configurationSettings.Nessus_Source_Folder_Name}
+        if($null -ne $configurationSettings.Nessus_Archive_Folder_Name){$Nessus_Archive_Folder_Name = $configurationSettings.Nessus_Archive_Folder_Name}
+        if($null -ne $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan){$Nessus_Scan_Name_To_Delete_Oldest_Scan = $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan}
+        if($null -ne $configurationSettings.Export_Scans_From_Today){$Export_Scans_From_Today = $configurationSettings.Export_Scans_From_Today}
+        if($null -ne $configurationSettings.Export_Day){$Export_Day = $configurationSettings.Export_Day}
+        if($null -ne $configurationSettings.Export_Custom_Extended_File_Name_Attribute){$Export_Custom_Extended_File_Name_Attribute = $configurationSettings.Export_Custom_Extended_File_Name_Attribute}
+        if($null -ne $configurationSettings.Elasticsearch_URL){$Elasticsearch_URL = $configurationSettings.Elasticsearch_URL}
+        if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
+        if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
+        if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
+        if($null -ne $configurationSettings.Export_PDF_URL){$Export_PDF_URL = $configurationSettings.Export_PDF_URL}
+        if($null -ne $configurationSettings.Export_CSV_URL){$Export_CSV_URL = $configurationSettings.Export_CSV_URL}
+        if($null -ne $configurationSettings.Email_From){$Email_From = $configurationSettings.Email_From}
+        if($null -ne $configurationSettings.Email_To){$Email_To = $configurationSettings.Email_To}
+        if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
+        if($null -ne $configurationSettings.Email_SMTP_Server){$Email_SMTP_Server = $configurationSettings.Email_SMTP_Server}
+        if($null -ne $configurationSettings.Option_Selected){$Option_Selected = $configurationSettings.Option_Selected}
+        if($null -ne $configurationSettings.Nessus_Scan_Date){$Nessus_Scan_Date = $configurationSettings.Nessus_Scan_Date}
+        if($null -ne $configurationSettings.Look_Back_Time_In_Days){$Look_Back_Time_In_Days = $configurationSettings.Look_Back_Time_In_Days}
+        if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
+        if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
+        if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
+        if($null -ne $configurationSettings.Execute_Patch_Summarization){$Execute_Patch_Summarization = $configurationSettings.Execute_Patch_Summarization}
+
+    }catch{
+        "No settings configured in the configuration.json file."
+    }
 
     $option0 = "0. Setup Elasticsearch and Kibana."
     $option1 = "1. Export Nessus files."
-    $option2 = "2. Ingest a single Nessus file into Elasticsearch."
-    $option3 = "3. Ingest all Nessus files from a specified directory into Elasticsearch."
-    $option4 = "4. Export and Ingest Nessus files into Elasticsearch (Optionally execute Patch summarization upon completion)."
-    $option5 = "5. Purge processed hashes list (remove list of what files have already been processed)."
+    $option2 = "2. Ingest a single Nessus file into Elasticsearch (Optional - Patch summarization upon completion)."
+    $option3 = "3. Ingest all Nessus files from a specified directory into Elasticsearch (Optional - Patch summarization upon completion)."
+    $option4 = "4. Export and Ingest Nessus files into Elasticsearch (Optional - Patch summarization upon completion)."
+    $option5 = "5. Purge processed hashes list (Remove list of what files have already been processed)."
     $option6 = "6. Compare scan data between scans and export results into Elasticsearch (Patch summarization)."
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and then send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
@@ -399,7 +439,7 @@ Begin{
                             Write-Host "Export status: $($exportStatus.status)"
                         }
                         catch {
-                            Write-Host "An error has occurred while trying to export the scan"
+                            Write-Host "An error has occurred while trying to export the scan" -ForegroundColor Red
                             break
                         }
                         Start-Sleep -Seconds 1
@@ -826,88 +866,90 @@ Begin{
         $pitID = $pitSearch.id
 
         $getAllHostsWithVulnsQueryBySeverityAllDocs = @"
-    {
-        "size" : 5000,
-        "query": {
-        "bool": {
-            "must": [],
-            "filter": [
-            {
-                "bool": {
+        {
+            "size": 5000,
+            "query": {
+              "bool": {
+                "must": [],
                 "filter": [
-                    {
+                  {
                     "bool": {
-                        "should": [
+                      "filter": [
                         {
-                            "query_string": {
-                            "fields": [
-                                "_index"
-                            ],
-                            "query": "$($Elasticsearch_Index_Name)"
-                            }
-                        }
-                        ],
-                        "minimum_should_match": 1
-                    }
-                    },
-                    {
-                    "bool": {
-                        "must": [],
-                        "filter": [
-                        {
-                            "bool": {
+                          "bool": {
                             "should": [
-                                {
-                                "term": {
-                                    "vulnerability.severity": {
-                                    "value": "$($severity)"
-                                    }
+                              {
+                                "query_string": {
+                                  "fields": [
+                                    "_index"
+                                  ],
+                                  "query": "$($Elasticsearch_Index_Name)"
                                 }
-                                }
+                              }
                             ],
                             "minimum_should_match": 1
-                            }
-                        }
-                        ],
-                        "should": [],
-                        "must_not": []
+                          }
+                        },
+                        {
+                          "bool": {
+                            "must": [],
+                            "filter": [
+                              {
+                                "bool": {
+                                  "should": [
+                                    {
+                                      "term": {
+                                        "vulnerability.severity": {
+                                          "value": "$($severity)"
+                                        }
+                                      }
+                                    }
+                                  ],
+                                  "minimum_should_match": 1
+                                }
+                              }
+                            ],
+                            "should": [],
+                            "must_not": []
+                          }
+                        }$Elasticsearch_Custom_Filter
+                      ]
                     }
-                    }$Elasticsearch_Custom_Filter
-                ]
-                }
+                  },
+                  {
+                    "range": {
+                      "@timestamp": {
+                        "format": "strict_date_optional_time",
+                        "gte": "$($dateAfter)",
+                        "lte": "$($dateBefore)"
+                      }
+                    }
+                  }
+                ],
+                "should": [],
+                "must_not": []
+              }
             },
-            {
-                "range": {
-                "@timestamp": {
-                    "format": "strict_date_optional_time",
-                    "gte": "$($dateAfter)",
-                    "lte": "$($dateBefore)"
-                }
-                }
-            }
-            ],
-            "should": [],
-            "must_not": []
-        }
-        },
-        "pit": {
-        "id":  "$pitID", 
-        "keep_alive": "1m"
-        },
-        "sort" : [
-        {"_shard_doc" : "asc"}
-        ]
-    }
+            "pit": {
+              "id": "$pitID",
+              "keep_alive": "1m"
+            },
+            "sort": [
+              {
+                "_shard_doc": "asc"
+              }
+            ]
+          }
 "@
 
         # Query Elastic for vulnerability information based on time frame
-        Write-Host "Querying Elastic for $severity vulnerability data." -ForegroundColor DarkBlue
+        Write-Host "Querying Elastic for $severity vulnerability data." -ForegroundColor Blue
 
         #$ingestResults = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverity -ContentType "application/json" -SkipCertificateCheck
         $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck; 
 
-        #Write-Host "Hosts found with $($severity): $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor DarkGreen
-        Write-Host "Events found with $($severity): $($queryResults.hits.hits.count)" -ForegroundColor DarkGreen
+        #Write-Host "Hosts found with $($severity): $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
+        Write-Host "Events found with $($severity): $($queryResults.hits.hits.count)" -ForegroundColor Green
 
         if($($queryResults.hits.hits.count) -ge 5000){
         Write-Host "Querying for more data since there are more than 5000 results."
@@ -994,7 +1036,7 @@ Begin{
 
         } while ($queryResults[-1].hits.hits.count -ge 5000)
         }
-        Write-Host "Finished paging through ($($queryResults.hits.hits.count)) results, moving along." -ForegroundColor DarkBlue
+        Write-Host "Finished paging through ($($queryResults.hits.hits.count)) results, moving along." -ForegroundColor Blue
 
         return $queryResults
     }
@@ -1009,182 +1051,176 @@ Begin{
         #Query that Includes all hosts detected with no vulnerabilities.
         $getAllHostsWithNoVulnsQuery = @"
         {
-        "aggs": {
-            "0": {
-            "terms": {
-                "field": "host.name",
-                "order": {
-                "1-bucket>1-metric": "desc"
-                },
-                "size": 7500
-            },
             "aggs": {
-                "1-bucket": {
-                "filter": {
-                    "bool": {
-                    "must": [],
-                    "filter": [
-                        {
-                        "bool": {
-                            "must_not": {
-                            "bool": {
-                                "should": [
-                                {
-                                    "bool": {
-                                    "should": [
-                                        {
-                                        "term": {
-                                            "vulnerability.severity": {
-                                            "value": "Info"
-                                            }
-                                        }
-                                        }
-                                    ],
-                                    "minimum_should_match": 1
-                                    }
-                                },
-                                {
-                                    "bool": {
-                                    "should": [
-                                        {
-                                        "term": {
-                                            "vulnerability.severity": {
-                                            "value": "None"
-                                            }
-                                        }
-                                        }
-                                    ],
-                                    "minimum_should_match": 1
-                                    }
-                                }
-                                ],
-                                "minimum_should_match": 1
-                            }
-                            }
-                        }
-                        }
-                    ],
-                    "should": [],
-                    "must_not": []
-                    }
+              "0": {
+                "terms": {
+                  "field": "host.name",
+                  "order": {
+                    "1-bucket>1-metric": "desc"
+                  },
+                  "size": 7500
                 },
                 "aggs": {
-                    "1-metric": {
-                    "cardinality": {
-                        "field": "nessus.vulnerability.custom_hash.keyword"
-                    }
-                    }
-                }
-                },
-                "2-bucket": {
-                "filter": {
-                    "bool": {
-                    "must": [],
-                    "filter": [
-                        {
-                        "bool": {
-                            "should": [
-                            {
+                  "1-bucket": {
+                    "filter": {
+                      "bool": {
+                        "must": [],
+                        "filter": [
+                          {
+                            "bool": {
+                              "must_not": {
                                 "bool": {
-                                "should": [
+                                  "should": [
                                     {
-                                    "term": {
+                                      "term": {
                                         "vulnerability.severity": {
-                                        "value": "Info"
+                                          "value": "None"
                                         }
+                                      }
                                     }
-                                    }
-                                ],
-                                "minimum_should_match": 1
+                                  ],
+                                  "minimum_should_match": 1
                                 }
-                            },
-                            {
-                                "bool": {
-                                "should": [
-                                    {
-                                    "term": {
-                                        "vulnerability.severity": {
-                                        "value": "None"
-                                        }
-                                    }
-                                    }
-                                ],
-                                "minimum_should_match": 1
-                                }
+                              }
                             }
+                          }
+                        ],
+                        "should": [],
+                        "must_not": []
+                      }
+                    },
+                    "aggs": {
+                      "1-metric": {
+                        "cardinality": {
+                          "field": "nessus.vulnerability.custom_hash"
+                        }
+                      }
+                    }
+                  },
+                  "2-bucket": {
+                    "filter": {
+                      "bool": {
+                        "must": [],
+                        "filter": [
+                          {
+                            "bool": {
+                              "should": [
+                                {
+                                  "term": {
+                                    "vulnerability.severity": {
+                                      "value": "None"
+                                    }
+                                  }
+                                }
+                              ],
+                              "minimum_should_match": 1
+                            }
+                          }
+                        ],
+                        "should": [],
+                        "must_not": []
+                      }
+                    },
+                    "aggs": {
+                      "2-metric": {
+                        "cardinality": {
+                          "field": "nessus.vulnerability.custom_hash"
+                        }
+                      }
+                    }
+                  },
+                  "3-bucket": {
+                    "filter": {
+                      "bool": {
+                        "must": [],
+                        "filter": [
+                          {
+                            "bool": {
+                              "should": [
+                                {
+                                  "exists": {
+                                    "field": "vulnerability.report_id"
+                                  }
+                                }
+                              ],
+                              "minimum_should_match": 1
+                            }
+                          }
+                        ],
+                        "should": [],
+                        "must_not": []
+                      }
+                    },
+                    "aggs": {
+                      "3-metric": {
+                        "top_metrics": {
+                          "metrics": {
+                            "field": "vulnerability.report_id"
+                          },
+                          "size": 1,
+                          "sort": {
+                            "@timestamp": "desc"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "size": 0,
+            "_source": {
+              "excludes": []
+            },
+            "query": {
+              "bool": {
+                "must": [],
+                "filter": [
+                  {
+                    "bool": {
+                      "filter": [
+                        {
+                          "bool": {
+                            "should": [
+                              {
+                                "query_string": {
+                                  "fields": [
+                                    "_index"
+                                  ],
+                                  "query": "$($Elasticsearch_Index_Name)"
+                                }
+                              }
                             ],
                             "minimum_should_match": 1
-                        }
-                        }
-                    ],
-                    "should": [],
-                    "must_not": []
+                          }
+                        }$Elasticsearch_Custom_Filter
+                      ]
                     }
-                },
-                "aggs": {
-                    "2-metric": {
-                    "cardinality": {
-                        "field": "nessus.vulnerability.custom_hash.keyword"
+                  },
+                  {
+                    "range": {
+                      "@timestamp": {
+                        "format": "strict_date_optional_time",
+                        "gte": "$($dateAfter)",
+                        "lte": "$($dateBefore)"
+                      }
                     }
-                    }
-                }
-                }
+                  }
+                ],
+                "should": [],
+                "must_not": []
+              }
             }
-            }
-        },
-        "size": 0,
-        "_source": {
-            "excludes": []
-        },
-        "query": {
-            "bool": {
-            "must": [],
-            "filter": [
-                {
-                "bool": {
-                    "filter": [
-                    {
-                        "bool": {
-                        "should": [
-                            {
-                            "query_string": {
-                                "fields": [
-                                "_index"
-                                ],
-                                "query": "$($Elasticsearch_Index_Name)"
-                            }
-                            }
-                        ],
-                        "minimum_should_match": 1
-                        }
-                    }$Elasticsearch_Custom_Filter
-                    ]
-                }
-                },
-                {
-                "range": {
-                    "@timestamp": {
-                    "format": "strict_date_optional_time",
-                    "gte": "$($dateAfter)",
-                    "lte": "$($dateBefore)"
-                    }
-                }
-                }
-            ],
-            "should": [],
-            "must_not": []
-            }
-        }
-        }
+          }
 "@
 
         # Query Elastic for vulnerability information based on time frame
-        Write-Host "Querying Elastic for hosts without vulnerabilities." -ForegroundColor DarkBlue
+        Write-Host "Querying Elastic for hosts without vulnerabilities." -ForegroundColor Blue
         $ingestResults = Invoke-RestMethod $Elasticsearch_URL/$Elasticsearch_Index_Name/_search -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithNoVulnsQuery -ContentType "application/json" -SkipCertificateCheck
-        Write-Host "Results found: $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor DarkGreen
+        Write-Host "Results found: $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
         
         $hostWithNoVulnerabilities = $ingestResults.aggregations."0".buckets | Where-Object {$_."1-bucket".doc_count -eq 0}
-        Write-Host "Hosts with 0 vulnerabilites found: $($hostWithNoVulnerabilities.count)" -ForegroundColor DarkGreen
+        Write-Host "Hosts with 0 vulnerabilites found: $($hostWithNoVulnerabilities.count)" -ForegroundColor Green
         $hostWithNoVulnerabilitiesAggObject = [PSCustomObject]@{
         aggregations = [PSCustomObject]@{
             0 = [PSCustomObject]@{
@@ -1203,7 +1239,7 @@ Begin{
         # Create host / vulns object for comparison later
         $allHostAndVulnsParsed = @()
         
-        Write-Host "Creating host / vulns object for comparison later" -ForegroundColor DarkBlue
+        Write-Host "Creating host / vulns object for comparison later" -ForegroundColor Blue
         $measure = Measure-Command {
         $vulnObjects = $($hostAndVulnData.count - 2)
         # Build cleaned object for those hosts that have vulnerabilities and other useful information
@@ -1249,15 +1285,15 @@ Begin{
         # Build object for those hosts that have have 0 vulnerabilities
         $hostAndVulnData[-1] | ForEach-Object {
             $_.aggregations."0".buckets | ForEach-Object {
-            # Host name
-            $allHostAndVulnsParsed += [PSCustomObject]@{
-                host = [PSCustomObject]@{
-                    name = $_.key
+                # Host name
+                $allHostAndVulnsParsed += [PSCustomObject]@{
+                    host = [PSCustomObject]@{
+                        name = $_.key
+                    }
+                    vulnerability = [PSCustomObject]@{
+                        report_id = $_."3-bucket"."3-metric".top.metrics.'vulnerability.report_id'
+                    }
                 }
-                vulnerability = [PSCustomObject]@{
-                    report_id = $_.vulnerability.report_id
-                }
-            }
             }
         }
 
@@ -1342,26 +1378,26 @@ Begin{
                 Write-Debug "Differences found! $combinedVulnsOnly"
                 }
                 # Check to see if te host went for 0 to 1+ vulns or the other way around so null values can properly handled.
-                if("=>" -eq $_.SideIndicator){
-                if($_.enrich.nessus.state -eq "no_vuln_detected"){
-                    # Host went from having no vulnerabilities to some vulnerabilities.
-                    Write-Debug "Host went from no vulnerabilities to some vulnerabilities!"
-                    $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "New vulnerabilities detected on host when previously there were none."
-                }else{
-                    # Add affliated state and message to reflect findings to object.
-                    $_ | Add-Member -NotePropertyName "enrich" -NotePropertyValue $(setState "New")
-                    $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "Vulnerabilities detected on current and old scans."
-                }
-                }elseif("<=" -eq $_.SideIndicator){
-                if($_.enrich.nessus.state -eq "no_vuln_detected"){
-                    # Host went from having some vulnerabilities to no vulnerabilities.
-                    Write-Debug "Host went from some vulnerabilities to no vulnerabilities!"
-                    $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "No vulnerabilities detected on host when previously there were some."
-                }else{
-                    # Add state and message to reflect findings.
-                    $_ | Add-Member -NotePropertyName "enrich" -NotePropertyValue $(setState "Patched")
-                    $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "Vulnerabilities detected on current and old scans."
-                }
+                if("<=" -eq $_.SideIndicator){
+                    if($_.enrich.nessus.state -eq "no_vuln_detected"){
+                        # Host went from having no vulnerabilities to some vulnerabilities.
+                        Write-Debug "Host went from no vulnerabilities to some vulnerabilities!"
+                        $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "New vulnerabilities detected on host when previously there were none."
+                    }else{
+                        # Add affliated state and message to reflect findings to object.
+                        $_ | Add-Member -NotePropertyName "enrich" -NotePropertyValue $(setState "New")
+                        $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "Vulnerabilities detected on current and old scans."
+                    }
+                }elseif("=>" -eq $_.SideIndicator){
+                    if($_.enrich.nessus.state -eq "no_vuln_detected"){
+                        # Host went from having some vulnerabilities to no vulnerabilities.
+                        Write-Debug "Host went from some vulnerabilities to no vulnerabilities!"
+                        $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "No vulnerabilities detected on host when previously there were some."
+                    }else{
+                        # Add state and message to reflect findings.
+                        $_ | Add-Member -NotePropertyName "enrich" -NotePropertyValue $(setState "Patched")
+                        $_ | Add-Member -NotePropertyName "message" -NotePropertyValue "Vulnerabilities detected on current and old scans."
+                    }
                 }elseif("==" -eq $_.SideIndicator ){
                     Write-Debug "No changes to host. Found 0 vulnerabilites on current and old scans.";
                     if($_.enrich.nessus.state -eq "no_vuln_detected"){
@@ -1421,7 +1457,7 @@ Begin{
         $missingHostVulnerabilitySummary = @()
         # Count missing and found hosts
         $missingHosts = 0
-        Write-Host "Comparing current vulns to old vulns and storing them into the summary object." -ForegroundColor DarkBlue
+        Write-Host "Comparing current vulns to old vulns and storing them into the summary object." -ForegroundColor Blue
         $measure = Measure-Command {
         $uniqueHosts = ""
         $uniqueHosts = ($currentVulnsIn.host.name | Sort-Object -Unique)
@@ -1458,7 +1494,7 @@ Begin{
         $dateAfter,
         $dateBefore
         )
-        Write-Host "Going to query and aggregate all results for comparison analysis between $(Get-Date $dateAfter) and $(Get-Date $dateBefore)." -ForegroundColor DarkBlue
+        Write-Host "Going to query and aggregate all results for comparison analysis between $(Get-Date $dateAfter) and $(Get-Date $dateBefore)." -ForegroundColor Blue
         
         $measure = Measure-Command {
 
@@ -1501,7 +1537,7 @@ Begin{
         if($ingestResults.errors -ne "True"){
             Write-Host "Results ingested: $($ingestResults.items.count)" -ForegroundColor "Green"
         }else{
-            Write-Host "Errors found while ingesting: $($ingestResults.items[0].create.error)" -ForegroundColor "Yellow"
+            Write-Host "Errors found while ingesting: $($ingestResults.items.create.error)" -ForegroundColor "Red"
             $ingestResults 
         }
         }
@@ -1529,16 +1565,16 @@ Begin{
         @"
                             {
                                 "bool": {
-                                "should": [
-                                    {
-                                    "term": {
-                                        "vulnerability.report_id": {
-                                        "value": "$_"
+                                    "should": [
+                                        {
+                                            "term": {
+                                                "vulnerability.report_id": {
+                                                    "value": "$_"
+                                                }
+                                            }
                                         }
-                                    }
-                                    }
-                                ],
-                                "minimum_should_match": 1
+                                    ],
+                                    "minimum_should_match": 1
                                 }
                             }
 "@
@@ -1603,16 +1639,16 @@ Begin{
             $Elasticsearch_Custom_Filter = $null
         }
 
-        Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
-
         if($null -ne $Nessus_Scan_Date){
             $dates = generateDates -customDate $Nessus_Scan_Date
         }else{
-            Write-Host "Nessus Scan Date for the latest scan you want to compare is required."
-            $Nessus_Scan_Date = Read-Host "Enter a date for current scans, for example, 1/10/2024"
+            Write-Host "Nessus Scan Date for the latest scan you want to compare is required. Using today: $(Get-Date -Format M/dd/yyyy)"
+            $Nessus_Scan_Date = $(Get-Date -Format M/dd/yyyy)
             $dates = generateDates -customDate $Nessus_Scan_Date
         }
-        
+
+        Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
+
         $dateAfter = $dates[0]
         $dateBefore = $dates[1]
         
@@ -1638,13 +1674,13 @@ Begin{
         do {
             # If oldVulns is greater than 0, then proceed
             if($oldVulns.Count -gt 0){
-            Write-Host "$($oldVulns.Count) events found in last $Look_Back_Time_In_DaysPlusIterations day(s) data, comparing scans now." -ForegroundColor DarkBlue
+            Write-Host "$($oldVulns.Count) events found in last $Look_Back_Time_In_DaysPlusIterations day(s) data, comparing scans now." -ForegroundColor Blue
             
             # Finally compare and ingest the results
             finalCompareAndIngest -currentScanDate $dateAfter -referenceScanDate $dateAfterShiftDays
             
             }else{
-            Write-Host "No events found in last $Look_Back_Time_In_DaysPlusIterations day(s). No data ingested. Moving along." -ForegroundColor DarkBlue
+            Write-Host "No events found in last $Look_Back_Time_In_DaysPlusIterations day(s). No data ingested. Moving along." -ForegroundColor Blue
             }
 
             # Increase iteration by 1 and decrement custom lookback iteration by 1
@@ -1652,7 +1688,7 @@ Begin{
             $Look_Back_Iterations--
 
             if($Look_Back_Iterations -gt 0){
-            Write-Host "Shifting data for next iteration. There is potentially $Look_Back_Iterations interation(s) to go." -ForegroundColor DarkBlue
+            Write-Host "Shifting data for next iteration. There is potentially $Look_Back_Iterations interation(s) to go." -ForegroundColor Blue
             # Shift days based on look back time and iterations completed
             # Compute new shift iteration in days
             $Look_Back_Time_In_DaysPlusIterations = $($Look_Back_Time_In_Days*$iterations)
@@ -1671,23 +1707,35 @@ Begin{
         param (
             $Elasticsearch_Api_Key,
             $Export_URL,
-            $Kibana_URL,
             $FileType
         )
         if ($null -eq $Export_URL){
             Write-Host "No Export URL for PDF or CSV provided, exiting" -ForegroundColor Yellow
             exit
         }
-        $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "Basic $Elasticsearch_Api_Key"}
+        $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "ApiKey $Elasticsearch_Api_Key"}
 
-        $result = Invoke-RestMethod -Method POST -Uri $Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck
+        $result = Invoke-RestMethod -Method POST -Uri $Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
         if($result.errors -or $null -eq $result){
-                Write-Host "There was an error trying to export $Export_URL"
+                Write-Host "There was an error trying to export $Export_URL" -ForegroundColor Red
                 $result.errors
         }else{
+            # Create a temporary file name for downloading the report
             $tempFile = [System.IO.Path]::GetTempFileName()
+            # Extract Kibana URL from Export URL
+            $Export_URL -match "^.*(?=/api/reporting/generate)" | Out-Null
+            # Check for Kibana URL match
+            if($Matches){
+                Write-Host "Kibana URL match found. Using $($Matches[0]) for the Kibana URL."
+                $Kibana_URL = $Matches[0]
+            }else{
+                Write-Host "No Kibana URL Found, exiting." 
+                exit
+            }
 
+            # Download report
             Invoke-WebRequest -Method Get -Uri "$Kibana_URL$($result.path)" -Headers $kibanaHeader -OutFile $tempFile -ConnectionTimeoutSeconds 120 -RetryIntervalSec 10 -MaximumRetryCount 60 -SkipCertificateCheck
+            
             # Check if the file exists
             if (Test-Path $tempFile) {
                 $decodedUrl = [System.Web.HttpUtility]::UrlDecode($Export_URL)
@@ -1792,7 +1840,7 @@ Process {
     
                     $result = Invoke-RestMethod -Method POST -Uri $importSavedObjectsURL -Headers $kibanaHeader -ContentType "multipart/form-data; boundary=`"$boundary`"" -Body $bodyLines -AllowUnencryptedAuthentication -SkipCertificateCheck
                     if($result.errors -or $null -eq $result){
-                        Write-Host "There was an error trying to import $filename"
+                        Write-Host "There was an error trying to import $filename" -ForegroundColor Red
                         $result.errors
                     }
                     $fileBytes = $null
@@ -1819,6 +1867,7 @@ Process {
                 }
 
                 $finished = $true
+                break
             }
             '1' {
                 Write-Host "You selected Option $option1"
@@ -1833,6 +1882,7 @@ Process {
 
                 Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Export_Scans_From_Today $Export_Scans_From_Today -Export_Day $Export_Day -Export_Custom_Extended_File_Name_Attribute $Export_Custom_Extended_File_Name_Attribute
                 $finished = $true
+                break
             }
             '2' {
                 Write-Host "You selected Option $option2"
@@ -1851,7 +1901,36 @@ Process {
                 }
 
                 Invoke-Import_Nessus_To_Elasticsearch -Nessus_XML_File $Nessus_XML_File -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key
+                
+                if($Execute_Patch_Summarization -eq $true){
+                    # Execute Patch Summarization after scans have been ingested
+                    # Check for Elasticsearch URL and API Keys and prompt if not provided
+                    Write-Host "Patch summarization option set to true, executing patch summary with lookback days of $Look_Back_Time_In_Days and iterations of $Look_Back_Iterations" -ForegroundColor Cyan
+                    if($null -eq $Elasticsearch_URL){
+                        $Elasticsearch_URL = Read-Host "Elasticsearch URL (https://127.0.0.1:9200)"
+                    }
+                    if($null -eq $Elasticsearch_Api_Key){
+                        $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
+                    }
+                    
+                    # Configure Remote Elasticsearch URL automatically to the same cluster that is provided for Elasticsearch URL / Index / API Key.
+                    if($null -eq $Remote_Elasticsearch_URL){
+                        $Remote_Elasticsearch_URL = $Elasticsearch_URL
+                    }
+                    if($null -eq $Remote_Elasticsearch_Index_Name){
+                        $Remote_Elasticsearch_Index_Name = "$Elasticsearch_Index_Name-summary"
+                    }
+                    if($null -eq $Remote_Elasticsearch_Api_Key){
+                        $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
+                    }
+
+                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+
+                    Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
+                }
+
                 $finished = $true
+                break
             }
             '3' {
                 Write-Host "You selected Option $option3"
@@ -1869,7 +1948,35 @@ Process {
 
                 Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key
                 
+                if($Execute_Patch_Summarization -eq $true){
+                    # Execute Patch Summarization after scans have been ingested
+                    # Check for Elasticsearch URL and API Keys and prompt if not provided
+                    Write-Host "Patch summarization option set to true, executing patch summary with lookback days of $Look_Back_Time_In_Daysand iterations of $Look_Back_Iterations" -ForegroundColor Cyan
+                    if($null -eq $Elasticsearch_URL){
+                        $Elasticsearch_URL = Read-Host "Elasticsearch URL (https://127.0.0.1:9200)"
+                    }
+                    if($null -eq $Elasticsearch_Api_Key){
+                        $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
+                    }
+
+                    # Configure Remote Elasticsearch URL automatically to the same cluster that is provided for Elasticsearch URL / Index / API Key.
+                    if($null -eq $Remote_Elasticsearch_URL){
+                        $Remote_Elasticsearch_URL = $Elasticsearch_URL
+                    }
+                    if($null -eq $Remote_Elasticsearch_Index_Name){
+                        $Remote_Elasticsearch_Index_Name = "$Elasticsearch_Index_Name-summary"
+                    }
+                    if($null -eq $Remote_Elasticsearch_Api_Key){
+                        $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
+                    }
+
+                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+
+                    Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
+                }
+
                 $finished = $true
+                break
             }
             '4' {
                 Write-Host "You selected Option $option4." -ForegroundColor Yellow
@@ -1897,15 +2004,23 @@ Process {
                 if($Execute_Patch_Summarization -eq $true){
                     # Execute Patch Summarization after scans have been ingested
                     # Check for Elasticsearch URL and API Keys and prompt if not provided
-                    Write-Host "Patch summarization option set to true, executing patch summary with lookback days of $Look_Back_Time_In_Daysand iterations of $Look_Back_Iterations" -ForegroundColor Cyan
+                    Write-Host "Patch summarization option set to true, executing patch summary with lookback days of $Look_Back_Time_In_Days and iterations of $Look_Back_Iterations" -ForegroundColor Cyan
                     if($null -eq $Elasticsearch_URL){
                         $Elasticsearch_URL = Read-Host "Elasticsearch URL (https://127.0.0.1:9200)"
                     }
                     if($null -eq $Elasticsearch_Api_Key){
                         $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
                     }
+
+                    # Configure Remote Elasticsearch URL automatically to the same cluster that is provided for Elasticsearch URL / Index / API Key.
+                    if($null -eq $Remote_Elasticsearch_URL){
+                        $Remote_Elasticsearch_URL = $Elasticsearch_URL
+                    }
+                    if($null -eq $Remote_Elasticsearch_Index_Name){
+                        $Remote_Elasticsearch_Index_Name = "$Elasticsearch_Index_Name-summary"
+                    }
                     if($null -eq $Remote_Elasticsearch_Api_Key){
-                        $Remote_Elasticsearch_Api_Key = Read-Host "Remote Elasticsearch API key required"
+                        $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                     }
 
                     Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
@@ -1933,71 +2048,79 @@ Process {
                 if($null -eq $Elasticsearch_Api_Key){
                     $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
                 }
+                
+                # Configure Remote Elasticsearch URL automatically to the same cluster that is provided for Elasticsearch URL / Index / API Key.
+                if($null -eq $Remote_Elasticsearch_URL){
+                    $Remote_Elasticsearch_URL = $Elasticsearch_URL
+                }
+                if($null -eq $Remote_Elasticsearch_Index_Name){
+                    $Remote_Elasticsearch_Index_Name = "$Elasticsearch_Index_Name-summary"
+                }
                 if($null -eq $Remote_Elasticsearch_Api_Key){
-                    $Remote_Elasticsearch_Api_Key = Read-Host "Remote Elasticsearch API key required"
+                    $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                 }
 
                 Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
 
                 Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 $finished = $true
+                break
             }
             '7' {
                 Write-Host "You selected Option $option7"
+
                 if($null -eq $Elasticsearch_Api_Key){
                     $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
                 }
-                $reportedItemTypes = @()
+
                 $reportedItemFiles = @()
+
                 if($null -eq $Export_CSV_URL){
                     Write-Host "No URL for CSV export was provide so not exporting a CSV report. Use the -Export_URL followed by the Export_CSV_URL when running this report option." -ForegroundColor Yellow
-                    $Export_CSV_URL = Read-Host "Export CSV URL"
                 }elseif ($Export_CSV_URL){
                     # If CSV URL found for export then try to export the CSV report.
                     Write-Host "URL for CSV export found ($Export_CSV_URL)! Attempting export of CSV report."
-                    $CSVfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_CSV_URL -Kibana_URL $Kibana_URL -FileType ".csv"
-                    $reportedItemTypes += "CSV"
+                    $CSVfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_CSV_URL -FileType ".csv"
                     $reportedItemFiles += $CSVfile
                 }
+
                 if($null -eq $Export_PDF_URL){
                     Write-Host "No URL for PDF export was provide so not exporting a PDF report. Use the -Export_URL followed by the Export_PDF_URL when running this report option." -ForegroundColor Yellow
-                    $Export_CSV_URL = Read-Host "Export CSV URL"
                 }elseif ($Export_PDF_URL){
                     # If PDF URL found for export then try to export the PDF report.
                     Write-Host "URL for PDF export found ($Export_PDF_URL)! Attempting export of PDF report."
-                    $PDFfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_PDF_URL -Kibana_URL $Kibana_URL -FileType ".pdf"
-                    $reportedItemTypes += "PDF"
+                    $PDFfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_PDF_URL -FileType ".pdf"
                     $reportedItemFiles += $PDFfile
                 }
-                if($null -eq $Kibana_URL){
-                    Write-Host "No Kibana URL found."
-                    $Kibana_URL = Read-Host "Kibana URL (https://127.0.0.1:5601)"
-                }
+
                 if($null -eq $Email_To){
                     $Email_To = Read-Host "Recipient Email"
                 }
 
                 if($Email_From -and $Email_To -and $Email_SMTP_Server){
                     # Send reported items via Email
-                    Send-MailMessage -From $Email_From -To ($Email_To -split ",") -Cc $Email_CC -Body "Attached is the vulnerability report for $date." -Subject "Vulnerability Report for $date" -SmtpServer $Email_SMTP_Server -Attachments $reportedItemFiles
-                    Write-Host "$($reportedItemTypes | Join-String -Separator ", ") Sent to Email!" -ForegroundColor Green
+                    try{
+                        Send-MailMessage -From $Email_From -To ($Email_To -split ",") -Cc ($Email_CC -split ",") -Body $Email_Body -Subject $Email_Subject -SmtpServer $Email_SMTP_Server -Attachments $reportedItemFiles
+                        Write-Host "Files sent to email:`n$($($(Get-Item $reportedItemFiles).Name) | Join-String -Separator ", `n")" -ForegroundColor Green
+                    }catch{
+                        $_
+                        "Email was not able to be sent - Check the file size of that attachments and make sure your email gateway can send messages that large."
+                    }
                 }else{
                     Write-Host "Not all variables were supplied to send an email:"
                     Write-Host "Email_From : $Email_From"
                     Write-Host "Email_To : $Email_To"
                     Write-Host "Email_SMTP_Server : $Email_SMTP_Server"
-                    Write-Host "Optional : Email_CC : "
+                    Write-Host "Optional : Email_CC : $Email_CC"
                 }
 
                 # Clean up files after generation
-                #Remove-Item $PDFfile
-                #Remove-Item $CSVfile
-                # Test then remove the two lines above
                 $reportedItemFiles | ForEach-Object {
-                    Remove-Item $
+                    Remove-Item $_
                 }
 
                 $finished = $true
+                break
             }
             '10' {
                 Write-Host "You selected Option $option10." -ForegroundColor Yellow
