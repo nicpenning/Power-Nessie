@@ -52,6 +52,7 @@
     -Email_To ""
     -SMTP_Server ""
     -Email_CC ""
+    -Configuration_File_Path ""
 
 
 .EXAMPLE
@@ -160,56 +161,65 @@ Param (
     $Remote_Elasticsearch_Api_Key = $null,
     # Optionally execute Patch summarization upon completion of automated export and ingest.
     [Parameter(Mandatory=$false)]
-    $Execute_Patch_Summarization = "false"
+    $Execute_Patch_Summarization = "false",
+    # Optionally use a JSON configuration file (example - configuration.json)
+    [Parameter(Mandatory=$false)]
+    $Configuration_File_Path = $null
 )
 
 Begin{
     if ($PSVersionTable.PSVersion.Major -ge 7) {
         Write-Host "PowerShell version $($PSVersionTable.PSVersion.Major) detected, great!"
     } else {
-        Write-Host "Old version of PowerShell detected $($PSVersionTable.PSVersion.Major). Please install PowerShell 7+. Exiting."Write-Host "No scans found." -ForegroundColor Red
+        Write-Host "Old version of PowerShell detected $($PSVersionTable.PSVersion.Major). Please install PowerShell 7+. Exiting." -ForegroundColor Red
+        Write-Host "No scans found." -ForegroundColor Red
         Exit
     }
     # Check for configuration.json file to load configuration settings and populate them all. This will override any arguments passed in for the command line.
-    try{
-        $configurationSettings = Get-Content ./configuration.json | ConvertFrom-Json
-        $configurationSettingsCount = $($configurationSettings.PSObject.Properties | Where-Object {$_.MemberType -eq "NoteProperty" -and $_.Value -ne $null}).count
-        if($configurationSettingsCount -gt 0){
-            Write-Host "Configuration settings ($configurationSettingsCount) found in $(Get-Item configuration.json) file." -ForegroundColor Green
+    if($Configuration_File_Path){
+        try{
+            $configurationSettings = Get-Content $Configuration_File_Path | ConvertFrom-Json
+            $configurationSettingsCount = $($configurationSettings.PSObject.Properties | Where-Object {$_.MemberType -eq "NoteProperty" -and $_.Value -ne $null}).count
+            if($configurationSettingsCount -gt 0){
+                Write-Host "Configuration settings ($configurationSettingsCount) found in $(Get-Item $Configuration_File_Path) file." -ForegroundColor Green
+            }
+    
+            # Store all variables from the configuration file inside of variables to be used later in the script and make sure not to null out the current variables.
+            if($null -ne $configurationSettings.Nessus_URL){$Nessus_URL = $configurationSettings.Nessus_URL}
+            if($null -ne $configurationSettings.Nessus_File_Download_Location){$Nessus_File_Download_Location = $configurationSettings.Nessus_File_Download_Location}
+            if($null -ne $configurationSettings.Nessus_XML_File){$Nessus_XML_File = $configurationSettings.Nessus_XML_File}
+            if($null -ne $configurationSettings.Nessus_Access_Key){$Nessus_Access_Key = $configurationSettings.Nessus_Access_Key}
+            if($null -ne $configurationSettings.Nessus_Secret_Key){$Nessus_Secret_Key = $configurationSettings.Nessus_Secret_Key}
+            if($null -ne $configurationSettings.Nessus_Source_Folder_Name){$Nessus_Source_Folder_Name = $configurationSettings.Nessus_Source_Folder_Name}
+            if($null -ne $configurationSettings.Nessus_Archive_Folder_Name){$Nessus_Archive_Folder_Name = $configurationSettings.Nessus_Archive_Folder_Name}
+            if($null -ne $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan){$Nessus_Scan_Name_To_Delete_Oldest_Scan = $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan}
+            if($null -ne $configurationSettings.Export_Scans_From_Today){$Export_Scans_From_Today = $configurationSettings.Export_Scans_From_Today}
+            if($null -ne $configurationSettings.Export_Day){$Export_Day = $configurationSettings.Export_Day}
+            if($null -ne $configurationSettings.Export_Custom_Extended_File_Name_Attribute){$Export_Custom_Extended_File_Name_Attribute = $configurationSettings.Export_Custom_Extended_File_Name_Attribute}
+            if($null -ne $configurationSettings.Elasticsearch_URL){$Elasticsearch_URL = $configurationSettings.Elasticsearch_URL}
+            if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
+            if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
+            if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
+            if($null -ne $configurationSettings.Export_PDF_URL){$Export_PDF_URL = $configurationSettings.Export_PDF_URL}
+            if($null -ne $configurationSettings.Export_CSV_URL){$Export_CSV_URL = $configurationSettings.Export_CSV_URL}
+            if($null -ne $configurationSettings.Email_From){$Email_From = $configurationSettings.Email_From}
+            if($null -ne $configurationSettings.Email_To){$Email_To = $configurationSettings.Email_To}
+            if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
+            if($null -ne $configurationSettings.Email_SMTP_Server){$Email_SMTP_Server = $configurationSettings.Email_SMTP_Server}
+            if($null -ne $configurationSettings.Option_Selected){$Option_Selected = $configurationSettings.Option_Selected}
+            if($null -ne $configurationSettings.Nessus_Scan_Date){$Nessus_Scan_Date = $configurationSettings.Nessus_Scan_Date}
+            if($null -ne $configurationSettings.Look_Back_Time_In_Days){$Look_Back_Time_In_Days = $configurationSettings.Look_Back_Time_In_Days}
+            if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
+            if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
+            if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
+            if($null -ne $configurationSettings.Execute_Patch_Summarization){$Execute_Patch_Summarization = $configurationSettings.Execute_Patch_Summarization}
+    
+        }catch{
+            $_
+            Write-Host "`nInvalid JSON file: Settings in configuration file could not be processed. Please check to make sure the file contain valid JSON data. Configuration file path: $Configuration_File_Path" -ForegroundColor Red
         }
-
-        # Store all variables from the configuration file inside of variables to be used later in the script and make sure not to null out the current variables.
-        if($null -ne $configurationSettings.Nessus_URL){$Nessus_URL = $configurationSettings.Nessus_URL}
-        if($null -ne $configurationSettings.Nessus_File_Download_Location){$Nessus_File_Download_Location = $configurationSettings.Nessus_File_Download_Location}
-        if($null -ne $configurationSettings.Nessus_XML_File){$Nessus_XML_File = $configurationSettings.Nessus_XML_File}
-        if($null -ne $configurationSettings.Nessus_Access_Key){$Nessus_Access_Key = $configurationSettings.Nessus_Access_Key}
-        if($null -ne $configurationSettings.Nessus_Secret_Key){$Nessus_Secret_Key = $configurationSettings.Nessus_Secret_Key}
-        if($null -ne $configurationSettings.Nessus_Source_Folder_Name){$Nessus_Source_Folder_Name = $configurationSettings.Nessus_Source_Folder_Name}
-        if($null -ne $configurationSettings.Nessus_Archive_Folder_Name){$Nessus_Archive_Folder_Name = $configurationSettings.Nessus_Archive_Folder_Name}
-        if($null -ne $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan){$Nessus_Scan_Name_To_Delete_Oldest_Scan = $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan}
-        if($null -ne $configurationSettings.Export_Scans_From_Today){$Export_Scans_From_Today = $configurationSettings.Export_Scans_From_Today}
-        if($null -ne $configurationSettings.Export_Day){$Export_Day = $configurationSettings.Export_Day}
-        if($null -ne $configurationSettings.Export_Custom_Extended_File_Name_Attribute){$Export_Custom_Extended_File_Name_Attribute = $configurationSettings.Export_Custom_Extended_File_Name_Attribute}
-        if($null -ne $configurationSettings.Elasticsearch_URL){$Elasticsearch_URL = $configurationSettings.Elasticsearch_URL}
-        if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
-        if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
-        if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
-        if($null -ne $configurationSettings.Export_PDF_URL){$Export_PDF_URL = $configurationSettings.Export_PDF_URL}
-        if($null -ne $configurationSettings.Export_CSV_URL){$Export_CSV_URL = $configurationSettings.Export_CSV_URL}
-        if($null -ne $configurationSettings.Email_From){$Email_From = $configurationSettings.Email_From}
-        if($null -ne $configurationSettings.Email_To){$Email_To = $configurationSettings.Email_To}
-        if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
-        if($null -ne $configurationSettings.Email_SMTP_Server){$Email_SMTP_Server = $configurationSettings.Email_SMTP_Server}
-        if($null -ne $configurationSettings.Option_Selected){$Option_Selected = $configurationSettings.Option_Selected}
-        if($null -ne $configurationSettings.Nessus_Scan_Date){$Nessus_Scan_Date = $configurationSettings.Nessus_Scan_Date}
-        if($null -ne $configurationSettings.Look_Back_Time_In_Days){$Look_Back_Time_In_Days = $configurationSettings.Look_Back_Time_In_Days}
-        if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
-        if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
-        if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
-        if($null -ne $configurationSettings.Execute_Patch_Summarization){$Execute_Patch_Summarization = $configurationSettings.Execute_Patch_Summarization}
-
-    }catch{
-        "No settings configured in the configuration.json file."
+    }else{
+        Write-Host "No configuration file supplied, using provided command line arguments."
     }
 
     $option0 = "0. Setup Elasticsearch and Kibana."
@@ -586,20 +596,20 @@ Begin{
                 $obj = [PSCustomObject]@{
                     "@timestamp" = $hostStart #Remove later for at ingest enrichment
                     "destination" = [PSCustomObject]@{
-                        "port" = $r.port
-                    }                
+                        "port" = $([Uint16]$r.port)
+                    }
+                    "message" = $n.name + ' - ' + $r.synopsis #Remove later for at ingest enrichment                
                     "event" = [PSCustomObject]@{
                         "category" = "host" #Remove later for at ingest enrichment
                         "kind" = "state" #Remove later for at ingest enrichment
-                        "duration" = $duration
+                        "duration" = $([long]$duration)
                         "start" = $hostStart
                         "end" = $hostEnd
                         "risk_score" = $r.severity
                         "dataset" = "vulnerability" #Remove later for at ingest enrichment
                         "provider" = "Nessus" #Remove later for at ingest enrichment
-                        "message" = $n.name + ' - ' + $r.synopsis #Remove later for at ingest enrichment
-                        "module" = "ImportTo-Elasticsearch-Nessus"
-                        "severity" = $r.severity #Remove later for at ingest enrichment
+                        "module" = "Invoke-Power-Nessie"
+                        "severity" = $([Uint16]$r.severity) #Remove later for at ingest enrichment
                         "url" = (@(if($r.cve){($r.cve | ForEach-Object {"https://cve.mitre.org/cgi-bin/cvename.cgi?name=$_"})}else{$null})) #Remove later for at ingest enrichment
                     }
                     "host" = [PSCustomObject]@{
@@ -1457,7 +1467,7 @@ Begin{
         $missingHostVulnerabilitySummary = @()
         # Count missing and found hosts
         $missingHosts = 0
-        Write-Host "Comparing current vulns to old vulns and storing them into the summary object." -ForegroundColor Blue
+        Write-Host "Comparing current vulns to old vulns and storing them into the summary object. This could take awhile, please wait" -ForegroundColor Cyan
         $measure = Measure-Command {
         $uniqueHosts = ""
         $uniqueHosts = ($currentVulnsIn.host.name | Sort-Object -Unique)
