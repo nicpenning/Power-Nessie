@@ -1,3 +1,5 @@
-Nessus_Exports/*
-ProcessedHashes.txt
 parsedTime.txt
+ProcessedHashes.txt
+Nessus_Exports/*
+all_results.json
+ingest_errors.json
