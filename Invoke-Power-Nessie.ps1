@@ -1467,7 +1467,7 @@ Begin{
         $missingHostVulnerabilitySummary = @()
         # Count missing and found hosts
         $missingHosts = 0
-        Write-Host "Comparing current vulns to old vulns and storing them into the summary object. This could take awhile, please wait" -ForegroundColor Cyan
+        Write-Host "Comparing current vulns to old vulns and storing them into the summary object. This could take awhile, please wait." -ForegroundColor Cyan
         $measure = Measure-Command {
         $uniqueHosts = ""
         $uniqueHosts = ($currentVulnsIn.host.name | Sort-Object -Unique)
@@ -1547,7 +1547,12 @@ Begin{
         if($ingestResults.errors -ne "True"){
             Write-Host "Results ingested: $($ingestResults.items.count)" -ForegroundColor "Green"
         }else{
-            Write-Host "Errors found while ingesting: $($ingestResults.items.create.error)" -ForegroundColor "Red"
+            Write-Host "Errors found while ingesting. Writing error to ingest_errors.json: $($ingestResults.items.create.error)" -ForegroundColor "Red"
+            $ingestResults | ConvertTo-Json -Depth 100 | Out-File all_results.json -Append
+            $errors = $($ingestResults.items.create | Where-Object {$_.status -ne 201}) 
+            if($null -ne $errors){
+                $($ingestResults.items.create | Where-Object {$_.status -ne 201})  | ConvertTo-Json -Depth 100 | Out-File ingest_errors.json -Append
+            }
             $ingestResults 
         }
         }
@@ -1667,7 +1672,13 @@ Begin{
         $dateBeforeShiftDays = dateShift -date $dateBefore -daysToShiftBackwards $Look_Back_Time_In_Days
         
         $todaysScanDataWithVulns = aggregateAllVulnerabilityScanData -dateAfter $dateAfter -dateBefore $dateBefore
-        $shiftedScanDataWithVulns = aggregateAllVulnerabilityScanData -dateAfter $dateAfterShiftDays -dateBefore $dateBeforeShiftDays
+        if($todaysScanDataWithVulns.hits.hits.count -gt 0){
+            Write-Host "Results found, now checking shifted date for scan data."
+            $shiftedScanDataWithVulns = aggregateAllVulnerabilityScanData -dateAfter $dateAfterShiftDays -dateBefore $dateBeforeShiftDays
+        }else{
+            Write-Host "No results found for initial scan comparison, exiting comparison feature."
+            exit
+        }
         
         # Create the objects that can be compared
         $global:currentVulns = @()
@@ -1675,6 +1686,7 @@ Begin{
         $global:currentVulns = createCleanObject $todaysScanDataWithVulns
         Write-Host "Querying for past vulnerabilities for comparison." -ForegroundColor Green
         $oldVulns = createCleanObject $shiftedScanDataWithVulns
+        
         # Start Iterations at 1 instead of 0
         $iterations = 1
 
@@ -1684,13 +1696,13 @@ Begin{
         do {
             # If oldVulns is greater than 0, then proceed
             if($oldVulns.Count -gt 0){
-            Write-Host "$($oldVulns.Count) events found in last $Look_Back_Time_In_DaysPlusIterations day(s) data, comparing scans now." -ForegroundColor Blue
-            
-            # Finally compare and ingest the results
-            finalCompareAndIngest -currentScanDate $dateAfter -referenceScanDate $dateAfterShiftDays
+                Write-Host "$($oldVulns.Count) events found in last $Look_Back_Time_In_DaysPlusIterations day(s) data, comparing scans now." -ForegroundColor Blue
+                
+                # Finally compare and ingest the results
+                finalCompareAndIngest -currentScanDate $dateAfter -referenceScanDate $dateAfterShiftDays
             
             }else{
-            Write-Host "No events found in last $Look_Back_Time_In_DaysPlusIterations day(s). No data ingested. Moving along." -ForegroundColor Blue
+                Write-Host "No events found in last $Look_Back_Time_In_DaysPlusIterations day(s). No data ingested. Moving along." -ForegroundColor Blue
             }
 
             # Increase iteration by 1 and decrement custom lookback iteration by 1
