@@ -36,7 +36,7 @@
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
-    -Nessus_Scan_Date "3/5/2024"
+    -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,
     -Look_Back_Iterations 3,
     -Elasticsearch_Scan_Filter @("scan_1","scan2")
@@ -133,9 +133,10 @@ Param (
     [Parameter(Mandatory=$false)]
     $Option_Selected,
     ##### New For Patch Summarization Feature #####
-    # Set custom scan date for which scans you want to compare to it's historical reference
+    # Set custom scan dates for which scans you want to compare to for it's historical reference.
+    # For example, setting $Nessus_Base_Comparison_Scan_Date to 3/5/2024 will use data from 3/5/2024 and then use the configured lookback days to compare to (3 days would be 3/2/2024).
     [Parameter(Mandatory=$false)]
-    $Nessus_Scan_Date,
+    $Nessus_Base_Comparison_Scan_Date,
     # Look back time for checks
     [Parameter(Mandatory=$false)]
     $Look_Back_Time_In_Days = 7,
@@ -207,7 +208,7 @@ Begin{
             if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
             if($null -ne $configurationSettings.Email_SMTP_Server){$Email_SMTP_Server = $configurationSettings.Email_SMTP_Server}
             if($null -ne $configurationSettings.Option_Selected){$Option_Selected = $configurationSettings.Option_Selected}
-            if($null -ne $configurationSettings.Nessus_Scan_Date){$Nessus_Scan_Date = $configurationSettings.Nessus_Scan_Date}
+            if($null -ne $configurationSettings.Nessus_Base_Comparison_Scan_Date){$Nessus_Base_Comparison_Scan_Date = $configurationSettings.Nessus_Base_Comparison_Scan_Date}
             if($null -ne $configurationSettings.Look_Back_Time_In_Days){$Look_Back_Time_In_Days = $configurationSettings.Look_Back_Time_In_Days}
             if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
@@ -1553,7 +1554,7 @@ Begin{
             if($null -ne $errors){
                 $($ingestResults.items.create | Where-Object {$_.status -ne 201})  | ConvertTo-Json -Depth 100 | Out-File ingest_errors.json -Append
             }
-            $ingestResults 
+            Write-Debug $ingestResults 
         }
         }
 
@@ -1624,7 +1625,7 @@ Begin{
             $Elasticsearch_Api_Key,
             $Elasticsearch_Scan_Filter,
             $Elasticsearch_Scan_Filter_Type,
-            $Nessus_Scan_Date,
+            $Nessus_Base_Comparison_Scan_Date,
             $Remote_Elasticsearch_URL,
             $Remote_Elasticsearch_Index_Name,
             $Remote_Elasticsearch_Api_Key
@@ -1654,15 +1655,15 @@ Begin{
             $Elasticsearch_Custom_Filter = $null
         }
 
-        if($null -ne $Nessus_Scan_Date){
-            $dates = generateDates -customDate $Nessus_Scan_Date
+        if($null -ne $Nessus_Base_Comparison_Scan_Date){
+            $dates = generateDates -customDate $Nessus_Base_Comparison_Scan_Date
         }else{
             Write-Host "Nessus Scan Date for the latest scan you want to compare is required. Using today: $(Get-Date -Format M/dd/yyyy)"
-            $Nessus_Scan_Date = $(Get-Date -Format M/dd/yyyy)
-            $dates = generateDates -customDate $Nessus_Scan_Date
+            $Nessus_Base_Comparison_Scan_Date = $(Get-Date -Format M/dd/yyyy)
+            $dates = generateDates -customDate $Nessus_Base_Comparison_Scan_Date
         }
 
-        Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
+        Write-Host "Querying $Elasticsearch_URL with $Elasticsearch_Index_Name as the source for the day $Nessus_Base_Comparison_Scan_Date and ingesting summary data into $Remote_Elasticsearch_URL with the index of $Remote_Elasticsearch_Index_Name." -ForegroundColor Yellow
 
         $dateAfter = $dates[0]
         $dateBefore = $dates[1]
@@ -1946,7 +1947,17 @@ Process {
                         $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                     }
 
-                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    if($Nessus_Base_Comparison_Scan_Date.count -gt 1){
+                        Write-Host "Multiple dates ($($Nessus_Base_Comparison_Scan_Date.count)) found! Running patch summary for each date."
+                        $Nessus_Base_Comparison_Scan_Date | ForEach-Object {
+                            $currentNessusScanDate = $_
+                            Write-Host "Executing patch summary for date: $currentNessusScanDate"
+                            Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $currentNessusScanDate -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                            Write-Host "Finished executing patch sumamry for date: $currentNessusScanDate. Moving along."
+                        }
+                    }else{
+                        Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $Nessus_Base_Comparison_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    }
 
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 }
@@ -1992,7 +2003,17 @@ Process {
                         $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                     }
 
-                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    if($Nessus_Base_Comparison_Scan_Date.count -gt 1){
+                        Write-Host "Multiple dates ($($Nessus_Base_Comparison_Scan_Date.count)) found! Running patch summary for each date."
+                        $Nessus_Base_Comparison_Scan_Date | ForEach-Object {
+                            $currentNessusScanDate = $_
+                            Write-Host "Executing patch summary for date: $currentNessusScanDate"
+                            Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $currentNessusScanDate -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                            Write-Host "Finished executing patch sumamry for date: $currentNessusScanDate. Moving along."
+                        }
+                    }else{
+                        Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $Nessus_Base_Comparison_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    }
 
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 }
@@ -2045,7 +2066,17 @@ Process {
                         $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                     }
 
-                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    if($Nessus_Base_Comparison_Scan_Date.count -gt 1){
+                        Write-Host "Multiple dates ($($Nessus_Base_Comparison_Scan_Date.count)) found! Running patch summary for each date."
+                        $Nessus_Base_Comparison_Scan_Date | ForEach-Object {
+                            $currentNessusScanDate = $_
+                            Write-Host "Executing patch summary for date: $currentNessusScanDate"
+                            Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $currentNessusScanDate -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                            Write-Host "Finished executing patch sumamry for date: $currentNessusScanDate. Moving along."
+                        }
+                    }else{
+                        Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $Nessus_Base_Comparison_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                    }
 
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 }
@@ -2082,7 +2113,17 @@ Process {
                     $Remote_Elasticsearch_Api_Key = $Elasticsearch_Api_Key
                 }
 
-                Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Scan_Date $Nessus_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                if($Nessus_Base_Comparison_Scan_Date.count -gt 1){
+                    Write-Host "Multiple dates ($($Nessus_Base_Comparison_Scan_Date.count)) found! Running patch summary for each date."
+                    $Nessus_Base_Comparison_Scan_Date | ForEach-Object {
+                        $currentNessusScanDate = $_
+                        Write-Host "Executing patch summary for date: $currentNessusScanDate"
+                        Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $currentNessusScanDate -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                        Write-Host "Finished executing patch sumamry for date: $currentNessusScanDate. Moving along."
+                    }
+                }else{
+                    Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $Nessus_Base_Comparison_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
+                }
 
                 Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 $finished = $true
