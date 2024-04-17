@@ -1677,8 +1677,8 @@ Begin{
             Write-Host "Results found, now checking shifted date for scan data."
             $shiftedScanDataWithVulns = aggregateAllVulnerabilityScanData -dateAfter $dateAfterShiftDays -dateBefore $dateBeforeShiftDays
         }else{
-            Write-Host "No results found for initial scan comparison, exiting comparison feature."
-            exit
+            Write-Host "No results found for initial scan comparison, moving along."
+            return
         }
         
         # Create the objects that can be compared
@@ -2119,7 +2119,7 @@ Process {
                         $currentNessusScanDate = $_
                         Write-Host "Executing patch summary for date: $currentNessusScanDate"
                         Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $currentNessusScanDate -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
-                        Write-Host "Finished executing patch sumamry for date: $currentNessusScanDate. Moving along."
+                        Write-Host "Finished executing patch summary for date: $currentNessusScanDate. Moving along."
                     }
                 }else{
                     Invoke-Vulnerability_Summarization -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Scan_Filter $Elasticsearch_Scan_Filter -Elasticsearch_Scan_Filter_Type $Elasticsearch_Scan_Filter_Type -Nessus_Base_Comparison_Scan_Date $Nessus_Base_Comparison_Scan_Date -Remote_Elasticsearch_URL $Remote_Elasticsearch_URL -Remote_Elasticsearch_Index_Name $Remote_Elasticsearch_Index_Name -Remote_Elasticsearch_Api_Key $Remote_Elasticsearch_Api_Key
