@@ -1548,7 +1548,7 @@ Begin{
         if($ingestResults.errors -ne "True"){
             Write-Host "Results ingested: $($ingestResults.items.count)" -ForegroundColor "Green"
         }else{
-            Write-Host "Errors found while ingesting. Writing error to ingest_errors.json: $($ingestResults.items.create.error)" -ForegroundColor "Red"
+            Write-Host "Errors found while ingesting. Writing error to ingest_errors.json." -ForegroundColor "Red"
             $ingestResults | ConvertTo-Json -Depth 100 | Out-File all_results.json -Append
             $errors = $($ingestResults.items.create | Where-Object {$_.status -ne 201}) 
             if($null -ne $errors){
