@@ -230,7 +230,7 @@ Begin{
     $option4 = "4. Export and Ingest Nessus files into Elasticsearch (Optional - Patch summarization upon completion)."
     $option5 = "5. Purge processed hashes list (Remove list of what files have already been processed)."
     $option6 = "6. Compare scan data between scans and export results into Elasticsearch (Patch summarization)."
-    $option7 = "7. Export PDF or CSV Report from Kibana dashboard and then send via Email (Advanced Options - Copy POST URL)."
+    $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
     $version = "`nVersion 0.10.0"
