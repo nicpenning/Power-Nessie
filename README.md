@@ -51,6 +51,9 @@ Script includes a Menu to help you  use Power-Nessie:
 - [X] Generate Reports (PDF/PNG) & Send via Email
 - [X] Configuration File Support
 
+New Patch Summary Dashboard:
+![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/eeda4133-7317-452e-b6f4-71f07b4d714c)
+
 ## Future
 - [ ] Add Detection Rules
 - [ ] Automate/Implement Latest CISA KEVs ([Feature Request](https://github.com/nicpenning/Nessus-ES/issues/13))
