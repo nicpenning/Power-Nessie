@@ -41,7 +41,7 @@ Script includes a Menu to help you  use Power-Nessie:
 - [X] Index Template
 - [X] Data View, Searches, Visualizations, and Dashboards
 - [X] ECS coverage across as many fields as possible
-- [ ] Documentation ([Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview))
+- [X] Documentation ([Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview))
 - [X] Automated Nessus File Download
 - [X] Automated Elasticsearch Ingest
 - [X] Setup Script (Template, Objects, API, etc..)
