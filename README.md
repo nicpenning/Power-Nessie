@@ -35,7 +35,7 @@ Requirements
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
 Script includes a Menu to help you  use Power-Nessie:
-![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/ae5e7d56-4d2e-4024-aa1e-b0b847811687)
+![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/157d0bfc-d4d8-45ba-9607-f97ceabfab19)
 
 ## Now
 - [X] Index Template
@@ -47,8 +47,9 @@ Script includes a Menu to help you  use Power-Nessie:
 - [X] Setup Script (Template, Objects, API, etc..)
 
 ## New
-- [X] Compare Scans (New Data Stream)
+- [X] Compare Scans (New Data Stream and Dashboard)
 - [X] Generate Reports (PDF/PNG) & Send via Email
+- [X] Configuration File Support
 
 ## Future
 - [ ] Add Detection Rules
