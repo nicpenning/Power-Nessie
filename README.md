@@ -10,6 +10,7 @@ The old project that I had forked and made my changes to is now archived/read-on
 
 This new project comes with some new changes such as bug fixes, pipeline/mapping updates, and the new ability to do a patch summary from previously ingested Nessus scan data that contain the same hosts.
 
+#### 💝 Community
 Join the community here: https://teams.live.com/l/community/FBANlP3DgeNDPOagwI
 
 #### ⚡Power-Nessie🦕
