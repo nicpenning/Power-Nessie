@@ -30,9 +30,10 @@
     -Nessus_Secret_Key "redacted"
     -Nessus_Source_Folder_Name "My Scans"
     -Nessus_Archive_Folder_Name "Archive-Ingested"
-    -Export_Scans_From_Today "false"
-    -Export_Day "01/11/2021"
-    -Export_Custom_Extended_File_Name_Attribute "_scanner1"
+    -Nessus_Export_Scans_From_Today "false"
+    -Nessus_Export_Day "01/11/2021"
+    -Nessus_Export_Custom_Extended_File_Name_Attribute "_scanner1"
+    -Nessus_Export_All_Scan_History null, "within_date_scope", "unlimited"
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
@@ -56,7 +57,7 @@
 
 
 .EXAMPLE
-   .\Invoke-Power-Nessie.ps1 -Nessus_URL "https://127.0.0.1:8834" -Nessus_File_Download_Location "C:\Nessus" -Nessus_Access_Key "redacted" -Nessus_Secret_Key "redacted" -Nessus_Source_Folder_Name "My Scans" -Nessus_Archive_Folder_Name "Archive-Ingested" -Export_Scans_From_Today "false" -Export_Day "01/11/2021" -Export_Custom_Extended_File_Name_Attribute "_scanner1" -Elasticsearch_URL "http://127.0.0.1:9200" -Elasticsearch_Index_Name "logs-nessus.vulnerability" -Elasticsearch_Api_Key "redacted"
+   .\Invoke-Power-Nessie.ps1 -Nessus_URL "https://127.0.0.1:8834" -Nessus_File_Download_Location "C:\Nessus" -Nessus_Access_Key "redacted" -Nessus_Secret_Key "redacted" -Nessus_Source_Folder_Name "My Scans" -Nessus_Archive_Folder_Name "Archive-Ingested" -Nessus_Export_Scans_From_Today "false" -Nessus_Export_Day "01/11/2021" -Nessus_Export_Custom_Extended_File_Name_Attribute "_scanner1" -Elasticsearch_URL "http://127.0.0.1:9200" -Elasticsearch_Index_Name "logs-nessus.vulnerability" -Elasticsearch_Api_Key "redacted"
 #>
 
 Param (
@@ -86,13 +87,19 @@ Param (
     $Nessus_Scan_Name_To_Delete_Oldest_Scan = $null,
     # Use this setting if you wish to only export the scans on the day the scan occurred. (default - false)
     [Parameter(Mandatory=$false)]
-    $Export_Scans_From_Today = $null,
+    $Nessus_Export_Scans_From_Today = $null,
     # Use this setting if you want to export scans for the specific day that the scan or scans occurred. (example - 11/07/2023)
     [Parameter(Mandatory=$false)]
-    $Export_Day = $null,
+    $Nessus_Export_Day = $null,
     # Added atrribute for the end of the file name for uniqueness when using with multiple scanners. (example - _scanner1)
     [Parameter(Mandatory=$false)]
-    $Export_Custom_Extended_File_Name_Attribute = $null,
+    $Nessus_Export_Custom_Extended_File_Name_Attribute = $null,
+    # Use this setting to configure the behaviour for exporting more than just the latest scan. Options are:
+    # Not configured, then the latest scan is exported.
+    # "within_date_scope" : exports the latest scan.
+    # "unlimited" : exports all scan history.
+    [Parameter(Mandatory=$false)]
+    $Nessus_Export_All_Scan_History = $null,
     # Add Elasticsearch URL to automate Nessus import (default - https://127.0.0.1:9200)
     [Parameter(Mandatory=$false)]
     $Elasticsearch_URL = "https://127.0.0.1:9200",
@@ -194,9 +201,10 @@ Begin{
             if($null -ne $configurationSettings.Nessus_Source_Folder_Name){$Nessus_Source_Folder_Name = $configurationSettings.Nessus_Source_Folder_Name}
             if($null -ne $configurationSettings.Nessus_Archive_Folder_Name){$Nessus_Archive_Folder_Name = $configurationSettings.Nessus_Archive_Folder_Name}
             if($null -ne $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan){$Nessus_Scan_Name_To_Delete_Oldest_Scan = $configurationSettings.Nessus_Scan_Name_To_Delete_Oldest_Scan}
-            if($null -ne $configurationSettings.Export_Scans_From_Today){$Export_Scans_From_Today = $configurationSettings.Export_Scans_From_Today}
-            if($null -ne $configurationSettings.Export_Day){$Export_Day = $configurationSettings.Export_Day}
-            if($null -ne $configurationSettings.Export_Custom_Extended_File_Name_Attribute){$Export_Custom_Extended_File_Name_Attribute = $configurationSettings.Export_Custom_Extended_File_Name_Attribute}
+            if($null -ne $configurationSettings.Nessus_Export_Scans_From_Today){$Nessus_Export_Scans_From_Today = $configurationSettings.Nessus_Export_Scans_From_Today}
+            if($null -ne $configurationSettings.Nessus_Export_Day){$Nessus_Export_Day = $configurationSettings.Nessus_Export_Day}
+            if($null -ne $configurationSettings.Nessus_Export_Custom_Extended_File_Name_Attribute){$Nessus_Export_Custom_Extended_File_Name_Attribute = $configurationSettings.Nessus_Export_Custom_Extended_File_Name_Attribute}
+            if($null -ne $configurationSettings.Nessus_Export_All_Scan_History){$Nessus_Export_All_Scan_History = $configurationSettings.Nessus_Export_All_Scan_History}
             if($null -ne $configurationSettings.Elasticsearch_URL){$Elasticsearch_URL = $configurationSettings.Elasticsearch_URL}
             if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
             if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
@@ -311,13 +319,13 @@ Begin{
             $Nessus_Archive_Folder_Name,
             # Use this setting if you wish to only export the scans on the day the scan occurred. (default - false)
             [Parameter(Mandatory=$false)]
-            $Export_Scans_From_Today,
+            $Nessus_Export_Scans_From_Today,
             # Use this setting if you want to export scans for the specific day that the scan or scans occurred. (example - 11/07/2023)
             [Parameter(Mandatory=$false)]
-            $Export_Day,
+            $Nessus_Export_Day,
             # Added atrribute for the end of the file name for uniqueness when using with multiple scanners. (example - _scanner1)
             [Parameter(Mandatory=$false)]
-            $Export_Custom_Extended_File_Name_Attribute
+            $Nessus_Export_Custom_Extended_File_Name_Attribute
         )
 #>
         $headers =  @{'X-ApiKeys' = "accessKey=$Nessus_Access_Key; secretKey=$Nessus_Secret_Key"}
@@ -375,7 +383,7 @@ Begin{
 
         function getScanIdsAndExport{
             updateStatus
-            if ($Export_Scans_From_Today -eq "true") {
+            if ($Nessus_Export_Scans_From_Today -eq "true") {
                 #Gets current day
                 $getDate = Get-Date -Format "dddd-d"
                 $global:listOfScans | ForEach-Object {
@@ -385,9 +393,9 @@ Begin{
                         Write-Host "Finished export of $_, going to update status..."
                     }
                 }
-            } elseif ($null -ne $Export_Day) {
+            } elseif ($null -ne $Nessus_Export_Day) {
                 #Gets day entered from arguments
-                $getDate = $Export_Day | Get-Date -Format "dddd-d"
+                $getDate = $Nessus_Export_Day | Get-Date -Format "dddd-d"
                 $global:listOfScans | ForEach-Object {
                     $currentId = $_.id
                     $scanName = $_.name
@@ -432,7 +440,7 @@ Begin{
                 }else{
                     $convertedTime = $currentConvertedTime
                 }
-                $exportFileName = Join-Path $Nessus_File_Download_Location $($($convertedTime | Get-Date -Format yyyy_MM_dd).ToString()+"-$($scanName)"+"-$scanId$($Export_Custom_Extended_File_Name_Attribute).nessus")
+                $exportFileName = Join-Path $Nessus_File_Download_Location $($($convertedTime | Get-Date -Format yyyy_MM_dd).ToString()+"-$($scanName)"+"-$scanId$($Nessus_Export_Custom_Extended_File_Name_Attribute).nessus")
                 $exportComplete = 0
                 $currentScanIdStatus = $($global:currentNessusScanDataRaw.scans | Where-Object {$_.id -eq $scanId}).status
                 #Check to see if scan is not running or is an empty scan, if true then lets export!
@@ -1903,7 +1911,7 @@ Process {
                     $Nessus_Secret_Key = Read-Host "Nessus Secret Key"
                 }
 
-                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Export_Scans_From_Today $Export_Scans_From_Today -Export_Day $Export_Day -Export_Custom_Extended_File_Name_Attribute $Export_Custom_Extended_File_Name_Attribute
+                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Nessus_Export_Scans_From_Today $Nessus_Export_Scans_From_Today -Nessus_Export_Day $Nessus_Export_Day -Nessus_Export_Custom_Extended_File_Name_Attribute $Nessus_Export_Custom_Extended_File_Name_Attribute -Nessus_Export_All_Scan_History
                 $finished = $true
                 break
             }
@@ -2040,7 +2048,7 @@ Process {
                     $Elasticsearch_Api_Key = Read-Host "Elasticsearch API Key"
                 }
 
-                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Export_Scans_From_Today $Export_Scans_From_Today -Export_Day $Export_Day -Export_Custom_Extended_File_Name_Attribute $Export_Custom_Extended_File_Name_Attribute
+                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Nessus_Export_Scans_From_Today $Nessus_Export_Scans_From_Today -Nessus_Export_Day $Nessus_Export_Day -Nessus_Export_Custom_Extended_File_Name_Attribute $Nessus_Export_Custom_Extended_File_Name_Attribute
 
                 Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key
 
