@@ -47,8 +47,8 @@
     -Remote_Elasticsearch_Api_Key "redacted"
     -Execute_Patch_Summarization "true"
     -Kibana_URL "http://127.0.0.1:5601"
-    -Export_PDF_URL ""
-    -Export_CSV_URL ""
+    -Kibana_Export_PDF_URL ""
+    -Kibana_Export_CSV_URL ""
     -Email_From ""
     -Email_To ""
     -SMTP_Server ""
@@ -114,10 +114,10 @@ Param (
     $Kibana_URL = "https://127.0.0.1:5601",
     # Add POST URL to call generation of PDF from outside Kibana(Share->PDF Reports->Advanced options->Copy POST Url)
     [Parameter(Mandatory=$false)]
-    $Export_PDF_URL = $null,
+    $Kibana_Export_PDF_URL = $null,
     # Add POST URL to call generation of CSV from outside Kibana(Share->CSV Reports->Advanced options->Copy POST Url)
     [Parameter(Mandatory=$false)]
-    $Export_CSV_URL = $null,
+    $Kibana_Export_CSV_URL = $null,
     # Sender email address (<SOC> soc@tkretts.special.org)
     [Parameter(Mandatory=$false)]
     $Email_From = $null,
@@ -209,8 +209,8 @@ Begin{
             if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
             if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
             if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
-            if($null -ne $configurationSettings.Export_PDF_URL){$Export_PDF_URL = $configurationSettings.Export_PDF_URL}
-            if($null -ne $configurationSettings.Export_CSV_URL){$Export_CSV_URL = $configurationSettings.Export_CSV_URL}
+            if($null -ne $configurationSettings.Kibana_Export_PDF_URL){$Kibana_Export_PDF_URL = $configurationSettings.Kibana_Export_PDF_URL}
+            if($null -ne $configurationSettings.Kibana_Export_CSV_URL){$Kibana_Export_CSV_URL = $configurationSettings.Kibana_Export_CSV_URL}
             if($null -ne $configurationSettings.Email_From){$Email_From = $configurationSettings.Email_From}
             if($null -ne $configurationSettings.Email_To){$Email_To = $configurationSettings.Email_To}
             if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
@@ -325,7 +325,13 @@ Begin{
             $Nessus_Export_Day,
             # Added atrribute for the end of the file name for uniqueness when using with multiple scanners. (example - _scanner1)
             [Parameter(Mandatory=$false)]
-            $Nessus_Export_Custom_Extended_File_Name_Attribute
+            $Nessus_Export_Custom_Extended_File_Name_Attribute,
+            # Use this setting to configure the behaviour for exporting more than just the latest scan. Options are:
+            # Not configured, then the latest scan is exported.
+            # "within_date_scope" : exports the latest scan.
+            # "unlimited" : exports all scan history.
+            [Parameter(Mandatory=$false)]
+            $Nessus_Export_All_Scan_History = $null
         )
 #>
         $headers =  @{'X-ApiKeys' = "accessKey=$Nessus_Access_Key; secretKey=$Nessus_Secret_Key"}
@@ -415,9 +421,27 @@ Begin{
                 }
             } else {
                 $global:listOfScans | ForEach-Object {
-                    Write-Host "Going to export $($_.name)"
-                    export -scanId $($_.id) -scanName $($_.name)
-                    Write-Host "Finished export of $($_.name), going to update status..."
+                    # Grab latest scan from Nessus.
+                    if($null -eq $Nessus_Export_All_Scan_History){
+                        Write-Host "Going to export $($_.name)"
+                        export -scanId $($_.id) -scanName $($_.name)
+                        Write-Host "Finished export of $($_.name), going to update status..."
+                    } else {
+                        # Grab all scans from history
+                        # Get Scan History
+                        $currentId = $_.id
+                        $scanName = $_.name
+                        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+                        if ($Nessus_Export_All_Scan_History -eq "unlimited"){
+                            Write-Host "Historical scans found: $($scanHistory.history.count)"
+                            $scanHistory.history | ForEach-Object {
+                                Write-Host "Scan History ID Found $($_.history_id)"
+                                $currentConvertedTime = convertToISO($_.creation_date)
+                                export -scanId $currentId -historyId $_.history_id -currentConvertedTime $currentConvertedTime -scanName $scanName
+                                Write-Host "Finished export of $scanName-$currentId with history ID of $($_.history_id), going to update status..."
+                            }
+                        }
+                    }    
                 }
             }
         }
@@ -433,14 +457,14 @@ Begin{
         }
 
         function export ($scanId, $historyId, $currentConvertedTime, $scanName){
-            Write-Host "Scan: $scanName exporting..."
+            Write-Host "Scan: $scanName exporting...`nscan id: $scanId`nhistory id: $historyId"
             do {
                 if($null -eq $currentConvertedTime){
                     $convertedTime = convertToISO($($global:currentNessusScanDataRaw.scans | Where-Object {$_.id -eq $scanId}).creation_date)
                 }else{
                     $convertedTime = $currentConvertedTime
                 }
-                $exportFileName = Join-Path $Nessus_File_Download_Location $($($convertedTime | Get-Date -Format yyyy_MM_dd).ToString()+"-$($scanName)"+"-$scanId$($Nessus_Export_Custom_Extended_File_Name_Attribute).nessus")
+                $exportFileName = Join-Path $Nessus_File_Download_Location $($($convertedTime | Get-Date -Format yyyy_MM_dd).ToString()+"-$($scanName)"+"-$scanId-$historyId$($Nessus_Export_Custom_Extended_File_Name_Attribute).nessus")
                 $exportComplete = 0
                 $currentScanIdStatus = $($global:currentNessusScanDataRaw.scans | Where-Object {$_.id -eq $scanId}).status
                 #Check to see if scan is not running or is an empty scan, if true then lets export!
@@ -1733,28 +1757,28 @@ Begin{
         )
     }
 
-    ### Report Generation Feature : To Do - Take in report options as only 1 option not 3 :D
+    ### Report Generation Feature
     function exportReportFromKibana {
         param (
             $Elasticsearch_Api_Key,
-            $Export_URL,
+            $Kibana_Export_URL,
             $FileType
         )
-        if ($null -eq $Export_URL){
+        if ($null -eq $Kibana_Export_URL){
             Write-Host "No Export URL for PDF or CSV provided, exiting" -ForegroundColor Yellow
             exit
         }
         $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "ApiKey $Elasticsearch_Api_Key"}
 
-        $result = Invoke-RestMethod -Method POST -Uri $Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
+        $result = Invoke-RestMethod -Method POST -Uri $Kibana_Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
         if($result.errors -or $null -eq $result){
-                Write-Host "There was an error trying to export $Export_URL" -ForegroundColor Red
+                Write-Host "There was an error trying to export $Kibana_Export_URL" -ForegroundColor Red
                 $result.errors
         }else{
             # Create a temporary file name for downloading the report
             $tempFile = [System.IO.Path]::GetTempFileName()
             # Extract Kibana URL from Export URL
-            $Export_URL -match "^.*(?=/api/reporting/generate)" | Out-Null
+            $Kibana_Export_URL -match "^.*(?=/api/reporting/generate)" | Out-Null
             # Check for Kibana URL match
             if($Matches){
                 Write-Host "Kibana URL match found. Using $($Matches[0]) for the Kibana URL."
@@ -1769,7 +1793,7 @@ Begin{
             
             # Check if the file exists
             if (Test-Path $tempFile) {
-                $decodedUrl = [System.Web.HttpUtility]::UrlDecode($Export_URL)
+                $decodedUrl = [System.Web.HttpUtility]::UrlDecode($Kibana_Export_URL)
 
                 $titleRegex = "title:'([^']+)'"
                 $titleMatch = [regex]::Match($decodedUrl, $titleRegex)
@@ -1911,7 +1935,7 @@ Process {
                     $Nessus_Secret_Key = Read-Host "Nessus Secret Key"
                 }
 
-                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Nessus_Export_Scans_From_Today $Nessus_Export_Scans_From_Today -Nessus_Export_Day $Nessus_Export_Day -Nessus_Export_Custom_Extended_File_Name_Attribute $Nessus_Export_Custom_Extended_File_Name_Attribute -Nessus_Export_All_Scan_History
+                Invoke-Exract_From_Nessus -Nessus_URL $Nessus_URL -Nessus_File_Download_Location $Nessus_File_Download_Location -Nessus_Access_Key $Nessus_Access_Key -Nessus_Secret_Key $Nessus_Secret_Key -Nessus_Source_Folder_Name $Nessus_Source_Folder_Name -Nessus_Archive_Folder_Name $Nessus_Archive_Folder_Name -Nessus_Export_Scans_From_Today $Nessus_Export_Scans_From_Today -Nessus_Export_Day $Nessus_Export_Day -Nessus_Export_Custom_Extended_File_Name_Attribute $Nessus_Export_Custom_Extended_File_Name_Attribute -Nessus_Export_All_Scan_History $Nessus_Export_All_Scan_History
                 $finished = $true
                 break
             }
@@ -2146,21 +2170,21 @@ Process {
 
                 $reportedItemFiles = @()
 
-                if($null -eq $Export_CSV_URL){
-                    Write-Host "No URL for CSV export was provide so not exporting a CSV report. Use the -Export_URL followed by the Export_CSV_URL when running this report option." -ForegroundColor Yellow
-                }elseif ($Export_CSV_URL){
+                if($null -eq $Kibana_Export_CSV_URL){
+                    Write-Host "No URL for CSV export was provide so not exporting a CSV report. Use the -Kibana_Export_URL followed by the Kibana_Export_CSV_URL when running this report option." -ForegroundColor Yellow
+                }elseif ($Kibana_Export_CSV_URL){
                     # If CSV URL found for export then try to export the CSV report.
-                    Write-Host "URL for CSV export found ($Export_CSV_URL)! Attempting export of CSV report."
-                    $CSVfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_CSV_URL -FileType ".csv"
+                    Write-Host "URL for CSV export found ($Kibana_Export_CSV_URL)! Attempting export of CSV report."
+                    $CSVfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Kibana_Export_URL $Kibana_Export_CSV_URL -FileType ".csv"
                     $reportedItemFiles += $CSVfile
                 }
 
-                if($null -eq $Export_PDF_URL){
-                    Write-Host "No URL for PDF export was provide so not exporting a PDF report. Use the -Export_URL followed by the Export_PDF_URL when running this report option." -ForegroundColor Yellow
-                }elseif ($Export_PDF_URL){
+                if($null -eq $Kibana_Export_PDF_URL){
+                    Write-Host "No URL for PDF export was provide so not exporting a PDF report. Use the -Kibana_Export_URL followed by the Kibana_Export_PDF_URL when running this report option." -ForegroundColor Yellow
+                }elseif ($Kibana_Export_PDF_URL){
                     # If PDF URL found for export then try to export the PDF report.
-                    Write-Host "URL for PDF export found ($Export_PDF_URL)! Attempting export of PDF report."
-                    $PDFfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Export_URL $Export_PDF_URL -FileType ".pdf"
+                    Write-Host "URL for PDF export found ($Kibana_Export_PDF_URL)! Attempting export of PDF report."
+                    $PDFfile = exportReportFromKibana -Elasticsearch_Api_Key $Elasticsearch_Api_Key -Kibana_Export_URL $Kibana_Export_PDF_URL -FileType ".pdf"
                     $reportedItemFiles += $PDFfile
                 }
 
