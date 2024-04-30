@@ -33,7 +33,7 @@
     -Nessus_Export_Scans_From_Today "false"
     -Nessus_Export_Day "01/11/2021"
     -Nessus_Export_Custom_Extended_File_Name_Attribute "_scanner1"
-    -Nessus_Export_All_Scan_History null, "within_date_scope", "unlimited"
+    -Nessus_Export_All_Scan_History "false"
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
@@ -95,9 +95,8 @@ Param (
     [Parameter(Mandatory=$false)]
     $Nessus_Export_Custom_Extended_File_Name_Attribute = $null,
     # Use this setting to configure the behaviour for exporting more than just the latest scan. Options are:
-    # Not configured, then the latest scan is exported.
-    # "within_date_scope" : exports the latest scan.
-    # "unlimited" : exports all scan history.
+    # Not configured or false, then the latest scan is exported.
+    # "true" : exports all scan history.
     [Parameter(Mandatory=$false)]
     $Nessus_Export_All_Scan_History = $null,
     # Add Elasticsearch URL to automate Nessus import (default - https://127.0.0.1:9200)
@@ -327,9 +326,8 @@ Begin{
             [Parameter(Mandatory=$false)]
             $Nessus_Export_Custom_Extended_File_Name_Attribute,
             # Use this setting to configure the behaviour for exporting more than just the latest scan. Options are:
-            # Not configured, then the latest scan is exported.
-            # "within_date_scope" : exports the latest scan.
-            # "unlimited" : exports all scan history.
+            # Not configured or false, then the latest scan is exported.
+            # "true" : exports all scan history.
             [Parameter(Mandatory=$false)]
             $Nessus_Export_All_Scan_History = $null
         )
@@ -380,8 +378,10 @@ Begin{
             $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
             $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
             if ($global:listOfScans) {
-                Write-Host "Scans found!" -ForegroundColor Green
-                $global:listOfScans
+                Write-Host "Scans found!`nName | Status | Creation Date | Scan ID" -ForegroundColor Green
+                $global:listOfScans | ForEach-Object {
+                    "{0,-25} {1,-10} {2,-15} {3}" -f $_.name, $_.status, $_.creation_date, $_.id
+                }
             } else {
                 Write-Host "No scans found." -ForegroundColor Red
             }
@@ -422,7 +422,7 @@ Begin{
             } else {
                 $global:listOfScans | ForEach-Object {
                     # Grab latest scan from Nessus.
-                    if($null -eq $Nessus_Export_All_Scan_History){
+                    if($Nessus_Export_All_Scan_History -ne "true"){
                         Write-Host "Going to export $($_.name)"
                         export -scanId $($_.id) -scanName $($_.name)
                         Write-Host "Finished export of $($_.name), going to update status..."
@@ -432,7 +432,7 @@ Begin{
                         $currentId = $_.id
                         $scanName = $_.name
                         $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
-                        if ($Nessus_Export_All_Scan_History -eq "unlimited"){
+                        if ($Nessus_Export_All_Scan_History -eq "true"){
                             Write-Host "Historical scans found: $($scanHistory.history.count)"
                             $scanHistory.history | ForEach-Object {
                                 Write-Host "Scan History ID Found $($_.history_id)"
