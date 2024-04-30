@@ -10,9 +10,6 @@ The old project that I had forked and made my changes to is now archived/read-on
 
 This new project comes with some new changes such as bug fixes, pipeline/mapping updates, and the new ability to do a patch summary from previously ingested Nessus scan data that contain the same hosts.
 
-#### 💝 Community
-Join the community here: https://teams.live.com/l/community/FBANlP3DgeNDPOagwI
-
 #### ⚡Power-Nessie🦕
 A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into manageable way.
 
@@ -53,6 +50,7 @@ Script includes a Menu to help you  use Power-Nessie:
 - [X] Compare Scans (New Data Stream and Dashboard)
 - [X] Generate Reports (PDF/PNG) & Send via Email
 - [X] Configuration File Support
+- [X] 💝 Community, join here: https://teams.live.com/l/community/FBANlP3DgeNDPOagwI
 
 New Patch Summary Dashboard:
 ![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/eeda4133-7317-452e-b6f4-71f07b4d714c)
