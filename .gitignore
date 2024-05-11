@@ -3,3 +3,4 @@ ProcessedHashes.txt
 Nessus_Exports/*
 all_results.json
 ingest_errors.json
+Kibana_Reports/*

@@ -240,7 +240,7 @@ Begin{
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 0.11.0"
+    $version = "`nVersion 1.0.0"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
@@ -1768,6 +1768,13 @@ Begin{
             Write-Host "No Export URL for PDF or CSV provided, exiting" -ForegroundColor Yellow
             exit
         }
+
+        # Check to see if report export directory exists, if not, create it!
+        if ($(Test-Path -Path "Kibana_Reports") -eq $false) {
+            Write-Host "Could not find Kibana Reports so creating that directory now."
+            New-Item "Kibana_Reports" -ItemType Directory
+        }
+
         $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "ApiKey $Elasticsearch_Api_Key"}
 
         $result = Invoke-RestMethod -Method POST -Uri $Kibana_Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
@@ -1776,7 +1783,7 @@ Begin{
                 $result.errors
         }else{
             # Create a temporary file name for downloading the report
-            $tempFile = [System.IO.Path]::GetTempFileName()
+            $tempFile = $(Join-Path "Kibana_Reports" $(New-Guid).Guid)+".tmp" 
             # Extract Kibana URL from Export URL
             $Kibana_Export_URL -match "^.*(?=/api/reporting/generate)" | Out-Null
             # Check for Kibana URL match
@@ -2210,9 +2217,9 @@ Process {
                 }
 
                 # Clean up files after generation
-                $reportedItemFiles | ForEach-Object {
-                    Remove-Item $_
-                }
+                # $reportedItemFiles | ForEach-Object {
+                #    Remove-Item $_
+                #}
 
                 $finished = $true
                 break
