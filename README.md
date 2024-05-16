@@ -11,7 +11,7 @@ The old project that I had forked and made my changes to is now archived/read-on
 This new project comes with some new changes such as bug fixes, pipeline/mapping updates, and the new ability to do a patch summary from previously ingested Nessus scan data that contain the same hosts.
 
 #### ⚡Power-Nessie🦕
-A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into manageable way.
+A way to ingest Nessus Scan data into Elasticsearch using PowerShell. Tracking vulnerabilities can be scary and overwhelming but this tool is designed to wrangle up those vulnerabilities into a manageable way.
 
 As always, feel free to post issues / questions in this project to make it even better. Enjoy!
 
@@ -30,8 +30,8 @@ With some careful setup of your Elastic stack and a little PowerShell you can tu
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
 
 Requirements
-* Functioning Elastic Stack (7.0+, 8.13.0 Latest Tested)
-* PowerShell 7.0+ (7.4.1 Latest Tested)
+* Functioning Elastic Stack (7.0+, 8.13.4 Latest Tested)
+* PowerShell 7.0+ (7.4.2 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
 Script includes a Menu to help you  use Power-Nessie:
