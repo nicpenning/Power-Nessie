@@ -240,7 +240,7 @@ Begin{
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.1.0"
+    $version = "`nVersion 1.2.0"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
@@ -700,6 +700,7 @@ Begin{
                             "output" = $r.plugin_output
                             "filename" = $r.fname
                             "modification_date" = if($r.plugin_modification_date){$r.plugin_modification_date}else{$null}
+                            "script_version" = if($r.script_version){$r.script_version}else{$null}
                         }
                         "vpr_score" = if($r.vpr_score){$r.vpr_score}else{$null}
                         "exploit_code_maturity" = if($r.exploit_code_maturity){$r.exploit_code_maturity}else{$null}
@@ -714,6 +715,12 @@ Begin{
                         }
                         "vuln_publication_date" = if($r.vuln_publication_date){$r.vuln_publication_date}else{$null}
                         "product_coverage" = if($r.product_coverage){$r.product_coverage}else{$null}
+                        "cea_id" = if($r.'cea-id'){$r.'cea-id'}else{$null}
+                        "cisa_known_exploited" = if($r.'cisa-known-exploited'){$r.'cisa-known-exploited'}else{$null}
+                        "cpe" = if($r.cpe){$r.cpe}else{$null}
+                        "exploited_by_malware" = if($r.exploited_by_malware){$r.exploited_by_malware}else{$null}
+                        "exploited_by_nessus" = if($r.exploited_by_nessus){$r.exploited_by_nessus;Pause}else{$null}
+                        "risk_factor" = if($r.risk_factor){$r.risk_factor}else{$null}
                     }
                     "network" = [PSCustomObject]@{
                         "transport" = $r.protocol
@@ -1289,40 +1296,47 @@ Begin{
         # Build cleaned object for those hosts that have vulnerabilities and other useful information
         $hostAndVulnData[0..$vulnObjects] | ForEach-Object {
             $_.hits.hits._source | ForEach-Object {
-            # Host name
-            $allHostAndVulnsParsed += [PSCustomObject]@{
-                host = [PSCustomObject]@{
-                ip = $_.host.ip
-                name = $_.host.name
-                os = [PSCustomObject]@{
-                    family = $_.host.os.family
-                    full = $_.host.os.full
-                    name = $_.host.os.name
-                    platform = $_.host.os.platform
+                # Host name
+                $allHostAndVulnsParsed += [PSCustomObject]@{
+                    host = [PSCustomObject]@{
+                        ip = $_.host.ip
+                        name = $_.host.name
+                        os = [PSCustomObject]@{
+                            family = $_.host.os.family
+                            full = $_.host.os.full
+                            name = $_.host.os.name
+                            platform = $_.host.os.platform
+                        }
+                    }
+                    nessus = [PSCustomObject]@{
+                        cea_id = $_.nessus.'cea-id'
+                        cisa_known_exploited = $_.nessus.'cisa-known-exploited'
+                        cpe = $_.nessus.cpe
+                        exploited_by_malware = $_.nessus.exploited_by_malware
+                        exploited_by_nessus = $_.nessus.exploited_by_nessus
+                        exploit_available = $_.nessus.exploit_available
+                        exploitability_ease = $_.nessus.exploitability_ease
+                        risk_factor= $_.nessus.risk_factor
+                        os_confidence = $_.nessus.os_confidence
+                        plugin = [PSCustomObject]@{
+                            name = $_.nessus.plugin.name
+                            script_version = $_.nessus.plugin.script_version
+                            type = $_.nessus.plugin.type
+                        }
+                        synopsis = $_.nessus.synopsis
+                        system_type = $_.nessus.system_type
+                        vpr_score = $_.nessus.vpr_score
+                        vulnerability = [PSCustomObject]@{
+                            custom_hash = $_.nessus.vulnerability.custom_hash
+                        }
+                    }
+                    vulnerability = [PSCustomObject]@{
+                        id = @($_.vulnerability.id)
+                        category = $_.vulnerability.category
+                        severity = $_.vulnerability.severity
+                        report_id = $_.vulnerability.report_id
+                    }
                 }
-                }
-                nessus = [PSCustomObject]@{
-                exploit_available = $_.nessus.exploit_available
-                exploitability_ease = $_.nessus.exploitability_ease
-                os_confidence = $_.nessus.os_confidence
-                plugin = [PSCustomObject]@{
-                    name = $_.nessus.plugin.name
-                    type = $_.nessus.plugin.type
-                }
-                synopsis = $_.nessus.synopsis
-                system_type = $_.nessus.system_type
-                vpr_score = $_.nessus.vpr_score
-                vulnerability = [PSCustomObject]@{
-                    custom_hash = $_.nessus.vulnerability.custom_hash
-                }
-                }
-                vulnerability = [PSCustomObject]@{
-                id = @($_.vulnerability.id)
-                category = $_.vulnerability.category
-                severity = $_.vulnerability.severity
-                report_id = $_.vulnerability.report_id
-                }
-            }
             }
         }
 
