@@ -719,7 +719,7 @@ Begin{
                         "cisa_known_exploited" = if($r.'cisa-known-exploited'){$r.'cisa-known-exploited'}else{$null}
                         "cpe" = if($r.cpe){$r.cpe}else{$null}
                         "exploited_by_malware" = if($r.exploited_by_malware){$r.exploited_by_malware}else{$null}
-                        "exploited_by_nessus" = if($r.exploited_by_nessus){$r.exploited_by_nessus;Pause}else{$null}
+                        "exploited_by_nessus" = if($r.exploited_by_nessus){$r.exploited_by_nessus}else{$null}
                         "risk_factor" = if($r.risk_factor){$r.risk_factor}else{$null}
                     }
                     "network" = [PSCustomObject]@{
