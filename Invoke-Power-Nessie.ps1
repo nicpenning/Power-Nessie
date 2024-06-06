@@ -240,7 +240,7 @@ Begin{
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.2.0"
+    $version = "`nVersion 1.2.1"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
@@ -1406,34 +1406,34 @@ Begin{
                 $state
                 )
                 $enrich = [PSCustomObject]@{
-                nessus = [PSCustomObject]@{
-                    current_scan_date = $currentScanDate
-                    reference_scan_data = $referenceScanDate
-                    days_between_scans = $((Get-Date $currentScanDate) - (Get-Date $referenceScanDate)).TotalDays
-                    state = if($state -eq "Unpatched"){
-                        "Unpatched"
-                    }elseif($state -eq "New"){
-                        "New"
-                    }elseif($state -eq "Patched"){
-                        "Patched"
-                    }elseif($state-eq "No Changes"){
-                        "No Changes"
-                    }else{$null}
-                }
+                    nessus = [PSCustomObject]@{
+                        current_scan_date = $currentScanDate
+                        reference_scan_date = $referenceScanDate
+                        days_between_scans = $((Get-Date $currentScanDate) - (Get-Date $referenceScanDate)).TotalDays
+                        state = if($state -eq "Unpatched"){
+                            "Unpatched"
+                        }elseif($state -eq "New"){
+                            "New"
+                        }elseif($state -eq "Patched"){
+                            "Patched"
+                        }elseif($state-eq "No Changes"){
+                            "No Changes"
+                        }else{$null}
+                    }
                 }
                 return $enrich
             }
 
             function setEventCreated {
-                $eventCreated = [PSCustomObject]@{
-                created = $(Get-Date -Format "o" -AsUTC)
+                    $eventCreated = [PSCustomObject]@{
+                    created = $(Get-Date -Format "o" -AsUTC)
                 }
                 return $eventCreated
             }
             
             $combinedVulnsOnly | ForEach-Object {
                 if("=>" -in $_.SideIndicator){
-                Write-Debug "Differences found! $combinedVulnsOnly"
+                    Write-Debug "Differences found! $combinedVulnsOnly"
                 }
                 # Check to see if te host went for 0 to 1+ vulns or the other way around so null values can properly handled.
                 if("<=" -eq $_.SideIndicator){
