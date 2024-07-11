@@ -240,7 +240,7 @@ Begin{
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.2.1"
+    $version = "`nVersion 1.2.2"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
@@ -619,13 +619,13 @@ Begin{
                 }
                 #Convert seconds to milliseconds
                 $hostStart = $([int]$hostStart*1000)
-                $hostEnd =  $([int]$hostEnd*1000)
+                $hostEnd =  if($hostEnd){$([int]$hostEnd*1000)}else{$null}
                 #Create duration and convert milliseconds to nano seconds
                 $duration =  $(($hostEnd - $hostStart)*1000000)
 
                 #Convert start and end dates to ISO
                 $hostStart = convertEpochSecondsToISO $hostStart
-                $hostEnd = convertEpochSecondsToISO $hostEnd
+                $hostEnd = if($hostEnd){convertEpochSecondsToISO $hostEnd}else{$null}
 
                 $obj = [PSCustomObject]@{
                     "@timestamp" = $hostStart #Remove later for at ingest enrichment
@@ -636,9 +636,9 @@ Begin{
                     "event" = [PSCustomObject]@{
                         "category" = "host" #Remove later for at ingest enrichment
                         "kind" = "state" #Remove later for at ingest enrichment
-                        "duration" = $([long]$duration)
+                        "duration" = if($duration){$([long]$duration)}else{$null}
                         "start" = $hostStart
-                        "end" = $hostEnd
+                        "end" = if($hostEnd){$hostEnd}else{$null}
                         "risk_score" = $r.severity
                         "dataset" = "vulnerability" #Remove later for at ingest enrichment
                         "provider" = "Nessus" #Remove later for at ingest enrichment
@@ -1779,8 +1779,13 @@ Begin{
             $Kibana_Export_URL,
             $FileType
         )
-        if ($null -eq $Kibana_Export_URL){
-            Write-Host "No Export URL for PDF or CSV provided, exiting" -ForegroundColor Yellow
+        if ($null -eq $Elasticsearch_Api_Key -or "" -eq $Elasticsearch_Api_Key) {
+            Write-Host "Elasticsearch API Key Required, exiting." -ForegroundColor Yellow
+            exit
+        }
+        
+        if ($null -eq $Kibana_Export_URL -or "" -eq $Kibana_Export_URL){
+            Write-Host "No Export URL for PDF or CSV provided, exiting." -ForegroundColor Yellow
             exit
         }
 
@@ -1792,7 +1797,9 @@ Begin{
 
         $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "ApiKey $Elasticsearch_Api_Key"}
 
+        Write-Host "Going to export report now, please wait." -ForegroundColor Yellow
         $result = Invoke-RestMethod -Method POST -Uri $Kibana_Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
+        
         if($result.errors -or $null -eq $result){
                 Write-Host "There was an error trying to export $Kibana_Export_URL" -ForegroundColor Red
                 $result.errors
@@ -2217,7 +2224,13 @@ Process {
                 if($Email_From -and $Email_To -and $Email_SMTP_Server){
                     # Send reported items via Email
                     try{
-                        Send-MailMessage -From $Email_From -To ($Email_To -split ",") -Cc ($Email_CC -split ",") -Body $Email_Body -Subject $Email_Subject -SmtpServer $Email_SMTP_Server -Attachments $reportedItemFiles
+                        # Add CC recipient if found
+                        if($Email_CC){
+                            Send-MailMessage -From $Email_From -To ($Email_To -split ",") -Cc ($Email_CC -split ",") -Body $Email_Body -Subject $Email_Subject -SmtpServer $Email_SMTP_Server -Attachments $reportedItemFiles
+                        }else{
+                            Send-MailMessage -From $Email_From -To ($Email_To -split ",") -Body $Email_Body -Subject $Email_Subject -SmtpServer $Email_SMTP_Server -Attachments $reportedItemFiles
+                        }
+                        # Otherwise, send it
                         Write-Host "Files sent to email:`n$($($(Get-Item $reportedItemFiles).Name) | Join-String -Separator ", `n")" -ForegroundColor Green
                     }catch{
                         $_
@@ -2228,7 +2241,7 @@ Process {
                     Write-Host "Email_From : $Email_From"
                     Write-Host "Email_To : $Email_To"
                     Write-Host "Email_SMTP_Server : $Email_SMTP_Server"
-                    Write-Host "Optional : Email_CC : $Email_CC"
+                    Write-Host "Email_CC (Optional) : $Email_CC"
                 }
 
                 # Clean up files after generation
