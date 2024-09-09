@@ -166,12 +166,15 @@ Param (
     # Add Remote Elasticsearch API key to ingest summary results into.
     [Parameter(Mandatory=$false)]
     $Remote_Elasticsearch_Api_Key = $null,
-    # Optionally execute Patch summarization upon completion of automated export and ingest.
+    # Optionally execute Patch summarization upon completion of automated export and ingest. (default false)
     [Parameter(Mandatory=$false)]
     $Execute_Patch_Summarization = "false",
     # Optionally use a JSON configuration file (example - configuration.json)
     [Parameter(Mandatory=$false)]
-    $Configuration_File_Path = $null
+    $Configuration_File_Path = $null,
+    # Optionally remove *.processed scans by number of days by file write time. Set at 0 will remove all *.processed scans. Set at 1 will remove all but the last day of scans.
+    [Parameter(Mandatory=$false)]
+    $Remove_Processed_Scans_By_Days = $null
 )
 
 Begin{
@@ -221,6 +224,8 @@ Begin{
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
             if($null -ne $configurationSettings.Execute_Patch_Summarization){$Execute_Patch_Summarization = $configurationSettings.Execute_Patch_Summarization}
+            if($null -ne $configurationSettings.Remove_Processed_Scans_By_Days){$Remove_Processed_Scans_By_Days = $configurationSettings.Remove_Processed_Scans_By_Days}
+
     
         }catch{
             $_
@@ -238,9 +243,10 @@ Begin{
     $option5 = "5. Purge processed hashes list (Remove list of what files have already been processed)."
     $option6 = "6. Compare scan data between scans and export results into Elasticsearch (Patch summarization)."
     $option7 = "7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL)."
+    $option8 = "8. Remove processed scans from local Nessus file download directory (May be used optionally with -Remove_Processed_Scans_By_Days)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.2.2"
+    $version = "`nVersion 1.3.0"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
@@ -253,6 +259,7 @@ Begin{
         Write-Host $option5
         Write-Host $option6
         Write-Host $option7
+        Write-Host $option8
 
         Write-Host $option10
         Write-Host $quit
@@ -721,6 +728,7 @@ Begin{
                         "exploited_by_malware" = if($r.exploited_by_malware){$r.exploited_by_malware}else{$null}
                         "exploited_by_nessus" = if($r.exploited_by_nessus){$r.exploited_by_nessus}else{$null}
                         "risk_factor" = if($r.risk_factor){$r.risk_factor}else{$null}
+                        "epss_score" = if($r.epss_score){$r.epss_score}else{$null}
                     }
                     "network" = [PSCustomObject]@{
                         "transport" = $r.protocol
@@ -807,7 +815,7 @@ Begin{
         }
 
         #Start ingesting 1 by 1!
-        $allFiles = Get-ChildItem -Path $Nessus_File_Download_Location
+        $allFiles = Get-ChildItem -Path $Nessus_File_Download_Location -Recurse -Include "*.nessus"
         $allProcessedHashes = Get-Content $processedHashesPath
         $allFiles | ForEach-Object {
             #Check if already processed by name and hash
@@ -843,7 +851,7 @@ Begin{
             $Nessus_File_Download_Location
         )
         # Get all files in the directory with the .nessus.processed extension
-        $allFiles = Get-ChildItem -Path $Nessus_File_Download_Location -Filter *.processed
+        $allFiles = Get-ChildItem -Path $Nessus_File_Download_Location -Recurse -Include "*.processed"
         
         # Rename each file
         foreach ($file in $allFiles) {
@@ -1312,6 +1320,7 @@ Begin{
                         cea_id = $_.nessus.'cea-id'
                         cisa_known_exploited = $_.nessus.'cisa-known-exploited'
                         cpe = $_.nessus.cpe
+                        epss_score = $_.nessus.epss_score
                         exploited_by_malware = $_.nessus.exploited_by_malware
                         exploited_by_nessus = $_.nessus.exploited_by_nessus
                         exploit_available = $_.nessus.exploit_available
@@ -1843,6 +1852,22 @@ Begin{
             }       
         }
     }
+
+    ### Remove Processed Nessus Scan Files
+    function Invoke-Remove-Exported-Processed-Scans {
+        param (
+            $Remove_Processed_Scans_By_Days,
+            $Nessus_File_Download_Location
+        )
+        Write-Host "Removing scans from $Nessus_File_Download_Location using the days to keep of: $Remove_Processed_Scans_By_Days." -ForegroundColor Blue
+        try{
+            Remove-Item $(Get-ChildItem -Path $Nessus_File_Download_Location -Filter *processed | Sort-Object -Property LastWriteTime | Where-Object {$_.LastWriteTime -lt $(get-date).AddDays(-$Remove_Processed_Scans_By_Days)})
+            Write-Host "Scans have been removed!`nProcessed files that remain are: $((Get-ChildItem -Path $Nessus_File_Download_Location -Filter *processed).count)" -ForegroundColor Green
+        }catch{
+            Write-Host "Scans failed to get removed."
+            $_
+        }
+    }
 }
 
 Process {
@@ -2023,6 +2048,11 @@ Process {
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 }
 
+                # If Remove Processed Scans by Days is set, then execute as needed.
+                if($null -ne $Remove_Processed_Scans_By_Days -and $null -ne $Nessus_File_Download_Location){
+                    Invoke-Remove-Exported-Processed-Scans -Remove_Processed_Scans_By_Days $Remove_Processed_Scans_By_Days -Nessus_File_Download_Location $Nessus_File_Download_Location
+                }
+
                 $finished = $true
                 break
             }
@@ -2077,6 +2107,11 @@ Process {
                     }
 
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
+                }
+
+                # If Remove Processed Scans by Days is set, then execute as needed.
+                if($null -ne $Remove_Processed_Scans_By_Days -and $null -ne $Nessus_File_Download_Location){
+                    Invoke-Remove-Exported-Processed-Scans -Remove_Processed_Scans_By_Days $Remove_Processed_Scans_By_Days -Nessus_File_Download_Location $Nessus_File_Download_Location
                 }
 
                 $finished = $true
@@ -2142,6 +2177,11 @@ Process {
                     Write-Host "Vulnerability Summarization tool finished!" -ForegroundColor Green
                 }
 
+                # If Remove Processed Scans by Days is set, then execute as needed.
+                if($null -ne $Remove_Processed_Scans_By_Days -and $null -ne $Nessus_File_Download_Location){
+                    Invoke-Remove-Exported-Processed-Scans -Remove_Processed_Scans_By_Days $Remove_Processed_Scans_By_Days -Nessus_File_Download_Location $Nessus_File_Download_Location
+                }
+
                 $finished = $true
                 break
             }
@@ -2149,6 +2189,12 @@ Process {
                 Write-Host "You selected Option $option5." -ForegroundColor Yellow
                 Invoke-Purge_Processed_Hashes_List
                 Invoke-Revert_Nessus_To_Processed_Rename $Nessus_File_Download_Location
+
+                # If Remove Processed Scans by Days is set, then execute as needed.
+                if($null -ne $Remove_Processed_Scans_By_Days -and $null -ne $Nessus_File_Download_Location){
+                    Invoke-Remove-Exported-Processed-Scans -Remove_Processed_Scans_By_Days $Remove_Processed_Scans_By_Days -Nessus_File_Download_Location $Nessus_File_Download_Location
+                }
+
                 $finished = $true
                 break
             }
@@ -2249,6 +2295,15 @@ Process {
                 #    Remove-Item $_
                 #}
 
+                $finished = $true
+                break
+            }
+            '8' {
+                Write-Host "You selected Option $option8." -ForegroundColor Yellow
+                # If Remove Processed Scans by Days is set, then execute as needed.
+                if($null -ne $Remove_Processed_Scans_By_Days -and $null -ne $Nessus_File_Download_Location){
+                    Invoke-Remove-Exported-Processed-Scans -Remove_Processed_Scans_By_Days $Remove_Processed_Scans_By_Days -Nessus_File_Download_Location $Nessus_File_Download_Location
+                }
                 $finished = $true
                 break
             }
