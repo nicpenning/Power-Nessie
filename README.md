@@ -57,7 +57,6 @@ New Patch Summary Dashboard:
 
 ## Future
 - [ ] Add Detection Rules
-- [ ] Automate/Implement Latest CISA KEVs ([Feature Request](https://github.com/nicpenning/Power-Nessie/issues/1))
 
 ## Automated or Manual Download and Ingest capability - Check the [Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview)!
 Invoke-Power-Nessie.ps1
