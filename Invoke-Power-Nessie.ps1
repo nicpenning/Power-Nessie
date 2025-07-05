@@ -108,6 +108,9 @@ Param (
     # Add Elasticsearch API key to automate Nessus import
     [Parameter(Mandatory=$false)]
     $Elasticsearch_Api_Key = $null,
+    # Optionally customize the Elasticsearch Authorization ApiKey text to support third party security such as SearchGuard (Bearer). (default ApiKey) 
+    [Parameter(Mandatory=$false)]
+    $Elasticsearch_Custom_Authentication_Header = "ApiKey",
     # Add Kibana URL for setup. (default - https://127.0.0.1:5601)
     [Parameter(Mandatory=$false)]
     $Kibana_URL = "https://127.0.0.1:5601",
@@ -117,6 +120,9 @@ Param (
     # Add POST URL to call generation of CSV from outside Kibana(Share->CSV Reports->Advanced options->Copy POST Url)
     [Parameter(Mandatory=$false)]
     $Kibana_Export_CSV_URL = $null,
+    # Optionally customize the Kibana Authorization ApiKey text to support third party security such as SearchGuard (Bearer). (default ApiKey) 
+    [Parameter(Mandatory=$false)]
+    $Kibana_Custom_Authentication_Header = "ApiKey",
     # Sender email address (<SOC> soc@tkretts.special.org)
     [Parameter(Mandatory=$false)]
     $Email_From = $null,
@@ -166,6 +172,9 @@ Param (
     # Add Remote Elasticsearch API key to ingest summary results into.
     [Parameter(Mandatory=$false)]
     $Remote_Elasticsearch_Api_Key = $null,
+    # Optionally customize the Remote Elasticsearch Authorization ApiKey text to support third party security such as SearchGuard (Bearer). (default ApiKey) 
+    [Parameter(Mandatory=$false)]
+    $Remote_Elasticsearch_Custom_Authentication_Header = "ApiKey",
     # Optionally execute Patch summarization upon completion of automated export and ingest. (default false)
     [Parameter(Mandatory=$false)]
     $Execute_Patch_Summarization = "false",
@@ -210,9 +219,11 @@ Begin{
             if($null -ne $configurationSettings.Elasticsearch_URL){$Elasticsearch_URL = $configurationSettings.Elasticsearch_URL}
             if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
             if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
+            if($null -ne $configurationSettings.Elasticsearch_Custom_Authentication_Header){$Elasticsearch_Custom_Authentication_Header = $configurationSettings.Elasticsearch_Custom_Authentication_Header}
             if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
             if($null -ne $configurationSettings.Kibana_Export_PDF_URL){$Kibana_Export_PDF_URL = $configurationSettings.Kibana_Export_PDF_URL}
             if($null -ne $configurationSettings.Kibana_Export_CSV_URL){$Kibana_Export_CSV_URL = $configurationSettings.Kibana_Export_CSV_URL}
+            if($null -ne $configurationSettings.Kibana_Custom_Authentication_Header){$Kibana_Custom_Authentication_Header = $configurationSettings.Kibana_Custom_Authentication_Header}
             if($null -ne $configurationSettings.Email_From){$Email_From = $configurationSettings.Email_From}
             if($null -ne $configurationSettings.Email_To){$Email_To = $configurationSettings.Email_To}
             if($null -ne $configurationSettings.Email_CC){$Email_CC = $configurationSettings.Email_CC}
@@ -572,7 +583,7 @@ Begin{
             Write-Host "Elasticsearch API Key Required! Go here if you don't know how to obtain one - https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html" -ForegroundColor "Red"
             break
         }
-        $global:AuthenticationHeaders = @{Authorization = "ApiKey $Elasticsearch_API_Key"}
+        $global:AuthenticationHeaders = @{Authorization = "$Elasticsearch_Custom_Authentication_Header $Elasticsearch_API_Key"}
 
         #Create index name
         if ($Elasticsearch_Index_Name -ne "logs-nessus.vulnerability" ) {
@@ -1699,8 +1710,8 @@ Begin{
             break
         }
 
-        $global:AuthenticationHeaders = @{Authorization = "ApiKey $Elasticsearch_API_Key"}
-        $global:AuthenticationHeadersRemote = @{"Authorization" = "ApiKey $Remote_Elasticsearch_Api_Key"}
+        $global:AuthenticationHeaders = @{Authorization = "$Elasticsearch_Custom_Authentication_Header $Elasticsearch_API_Key"}
+        $global:AuthenticationHeadersRemote = @{"Authorization" = "$Remote_Elasticsearch_Custom_Authentication_Header $Remote_Elasticsearch_Api_Key"}
     
         # Force lookback time in days to be an integer for iterations use case
         $Look_Back_Time_In_Days = [int]$Look_Back_Time_In_Days
@@ -1804,7 +1815,7 @@ Begin{
             New-Item "Kibana_Reports" -ItemType Directory
         }
 
-        $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "ApiKey $Elasticsearch_Api_Key"}
+        $kibanaHeader = @{"kbn-xsrf" = "true"; "Authorization" = "$Kibana_Custom_Authentication_Header $Elasticsearch_Api_Key"}
 
         Write-Host "Going to export report now, please wait." -ForegroundColor Yellow
         $result = Invoke-RestMethod -Method POST -Uri $Kibana_Export_URL -Headers $kibanaHeader -ContentType "application/json" -SkipCertificateCheck -MaximumRetryCount 10 -ConnectionTimeoutSeconds 120
