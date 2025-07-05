@@ -21,15 +21,15 @@
     project, it seemed easier to call the raw API to perform the bare minimum functions necessary to export
     scans out automatically. I appreciate Tenable leaving these core API functions (export scan and scan status) in their product.
 
-    Tested for Nessus 8.9.0+, Latest Tested 10.7.0.
-
     Variable Options
     -Nessus_URL "https://127.0.0.1:8834"
     -Nessus_File_Download_Location "C:\Nessus"
+    -Nessus_XML_File ""
     -Nessus_Access_Key "redacted"
     -Nessus_Secret_Key "redacted"
     -Nessus_Source_Folder_Name "My Scans"
     -Nessus_Archive_Folder_Name "Archive-Ingested"
+    -Nessus_Scan_Name_To_Delete_Oldest_Scan ""
     -Nessus_Export_Scans_From_Today "false"
     -Nessus_Export_Day "01/11/2021"
     -Nessus_Export_Custom_Extended_File_Name_Attribute "_scanner1"
@@ -37,6 +37,7 @@
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
+    -Elasticsearch_Custom_Authentication_Header "ApiKey"
     -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,
     -Look_Back_Iterations 3,
@@ -45,10 +46,12 @@
     -Remote_Elasticsearch_URL "http://127.0.0.1:9200"
     -Remote_Elasticsearch_Index_Name = "logs-nessus.vulnerability-summary",
     -Remote_Elasticsearch_Api_Key "redacted"
+    -Remote_Elasticsearch_Custom_Authentication_Header "ApiKey"
     -Execute_Patch_Summarization "true"
     -Kibana_URL "http://127.0.0.1:5601"
     -Kibana_Export_PDF_URL ""
     -Kibana_Export_CSV_URL ""
+    -Kibana_Custom_Authentication_Header "ApiKey"
     -Email_From ""
     -Email_To ""
     -SMTP_Server ""
@@ -146,10 +149,10 @@ Param (
     $Option_Selected,
     ##### New For Patch Summarization Feature #####
     # Set custom scan dates for which scans you want to compare to for it's historical reference.
-    # For example, setting $Nessus_Base_Comparison_Scan_Date to 3/5/2024 will use data from 3/5/2024 and then use the configured lookback days to compare to (3 days would be 3/2/2024).
+    # For example, setting $Nessus_Base_Comparison_Scan_Date to 3/15/2024 will use data from 3/15/2024 and then use the configured look back time in days to compare to (7 days would be 3/8/2024).
     [Parameter(Mandatory=$false)]
     $Nessus_Base_Comparison_Scan_Date,
-    # Look back time for checks
+    # Look back time for checks in days. This is how far back to compare the scan data. Typically this should be set at the frequency of scanning. Examples: Scanning weekly = 7, daily = 1 (default 7)
     [Parameter(Mandatory=$false)]
     $Look_Back_Time_In_Days = 7,
     # Iterations to look back for hosts not found in first lookback.  (default 3)
@@ -234,9 +237,12 @@ Begin{
             if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
+            if($null -ne $configurationSettings.Remote_Elasticsearch_URL){$Remote_Elasticsearch_URL = $configurationSettings.Remote_Elasticsearch_URL}
+            if($null -ne $configurationSettings.Remote_Elasticsearch_Index_Name){$Remote_Elasticsearch_Index_Name = $configurationSettings.Remote_Elasticsearch_Index_Name}
+            if($null -ne $configurationSettings.Remote_Elasticsearch_Api_Key){$Remote_Elasticsearch_Api_Key = $configurationSettings.Remote_Elasticsearch_Api_Key}
+            if($null -ne $configurationSettings.Remote_Elasticsearch_Custom_Authentication_Header){$Remote_Elasticsearch_Custom_Authentication_Header = $configurationSettings.Remote_Elasticsearch_Custom_Authentication_Header}
             if($null -ne $configurationSettings.Execute_Patch_Summarization){$Execute_Patch_Summarization = $configurationSettings.Execute_Patch_Summarization}
             if($null -ne $configurationSettings.Remove_Processed_Scans_By_Days){$Remove_Processed_Scans_By_Days = $configurationSettings.Remove_Processed_Scans_By_Days}
-
     
         }catch{
             $_
@@ -257,7 +263,7 @@ Begin{
     $option8 = "8. Remove processed scans from local Nessus file download directory (May be used optionally with -Remove_Processed_Scans_By_Days)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.3.0"
+    $version = "`nVersion 1.4.0"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
