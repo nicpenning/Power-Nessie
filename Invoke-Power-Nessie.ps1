@@ -629,6 +629,8 @@ Begin{
                     "host-ip" {$ip = $nHPTN_Item."#text"}
                     "host-fqdn" {$fqdn = $nHPTN_Item."#text"}
                     "host-rdns" {$rdns = $nHPTN_Item."#text"}
+                    "hostname$" {$hostname = $nHPTN_Item."#text"}
+                    "netbios-name" {$netbiosname = $nHPTN_Item."#text"}
                     "operating-system-unsupported" {$osu = $nHPTN_Item."#text"}
                     "system-type" {$systype = $nHPTN_Item."#text"}
                     "^os$" {$os = $nHPTN_Item."#text"}
@@ -673,8 +675,8 @@ Begin{
                     "host" = [PSCustomObject]@{
                         "ip" = $ip
                         "mac" = (@(if($macAddr){($macAddr.Split([Environment]::NewLine))}else{$null}))
-                        "hostname" = if($fqdn -notmatch "sources" -and ($fqbn)){($fqdn).ToLower()}elseif($rdns){($rdns).ToLower()}else{$null} #Remove later for at ingest enrichment #Also, added a check for an extra "sources" sub field added to the fqbn field
-                        "name" = if($fqdn -notmatch "sources" -and ($fqbn)){($fqdn).ToLower()}elseif($rdns){($rdns).ToLower()}else{$null} #Remove later for at ingest enrichment #Also, added a check for an extra "sources" sub field added to the fqbn field
+                        "hostname" = if($fqdn -notmatch "sources" -and ($fqbn)){($fqdn).ToLower()}elseif($rdns){($rdns).ToLower()}elseif($hostname){$hostname.ToLower()}elseif($netbiosname){$netbiosname.ToLower()}else{$null} #Remove later for at ingest enrichment #Also, added a check for an extra "sources" sub field added to the fqbn field
+                        "name" = if($fqdn -notmatch "sources" -and ($fqbn)){($fqdn).ToLower()}elseif($rdns){($rdns).ToLower()}elseif($hostname){$hostname.ToLower()}elseif($netbiosname){$netbiosname.ToLower()}else{$null} #Remove later for at ingest enrichment #Also, added a check for an extra "sources" sub field added to the fqbn field
                         "os" = [PSCustomObject]@{
                             "family" = $os
                             "full" = @(if($opersys){$opersys.Split("`n`r")}else{$null})
