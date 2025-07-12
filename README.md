@@ -24,18 +24,18 @@ As always, feel free to post issues / questions in this project to make it even 
 ```
 
 With some careful setup of your Elastic stack and a little PowerShell you can turn your .nessus files into this:
-![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/de61836f-8453-4f5c-88f4-2a6b2f7deeb1)
+![dashboard_simple](./documentation/images/dashboard_simple-9.0.3.jpeg)
 
 
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
 
 Requirements
-* Functioning Elastic Stack (7.0+, 8.18.3 Latest Tested)
+* Functioning Elastic Stack (7.0+, 8.18.3/9.0.3 Latest Tested)
 * PowerShell 7.0+ (7.5.1 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
 Script includes a Menu to help you  use Power-Nessie:
-![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/db2ea0aa-c345-40ca-ac1a-55607a69c1b7)
+![menu](./documentation/images/1.5.0-menu.png)
 
 ## Now
 - [X] Index Template
@@ -52,8 +52,8 @@ Script includes a Menu to help you  use Power-Nessie:
 - [X] Configuration File Support
 - [X] 💝 Community, join here: https://teams.live.com/l/community/FBANlP3DgeNDPOagwI
 
-New Patch Summary Dashboard:
-![image](https://github.com/nicpenning/Power-Nessie/assets/5582679/eeda4133-7317-452e-b6f4-71f07b4d714c)
+✨ Patch Summary Dashboard:
+![patch_summary_dashboard](./documentation/images/patch-summary-dashboard-8.13.3.jpeg)
 
 ## Future
 - [ ] Add Detection Rules
@@ -62,4 +62,4 @@ New Patch Summary Dashboard:
 Invoke-Power-Nessie.ps1
 
 ## Full dashboard preview
-https://github.com/nicpenning/Power-Nessie/assets/5582679/8fcc5db3-7f28-4410-b796-6d89f339bf6b
+![full_dashboard](./documentation/images/dashboard-9.0.3.jpeg)
