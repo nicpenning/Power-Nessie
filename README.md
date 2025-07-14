@@ -24,7 +24,7 @@ As always, feel free to post issues / questions in this project to make it even 
 ```
 
 With some careful setup of your Elastic stack and a little PowerShell you can turn your .nessus files into this:
-![dashboard_simple](./documentation/images/dashboard_simple-9.0.3.jpeg)
+![dashboard-simple](./documentation/images/dashboard-simple-8.13.3.jpeg)
 
 
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
@@ -62,4 +62,4 @@ Script includes a Menu to help you  use Power-Nessie:
 Invoke-Power-Nessie.ps1
 
 ## Full dashboard preview
-![full_dashboard](./documentation/images/dashboard-9.0.3.jpeg)
+![full_dashboard_using_v9.0.3](./documentation/images/dashboard-9.0.3.jpeg)
