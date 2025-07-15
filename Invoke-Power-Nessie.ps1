@@ -1504,7 +1504,7 @@ Begin{
             $combinedVulnsOnly | Add-Member -NotePropertyName "event" -NotePropertyValue $(setEventCreated)
             $combinedVulnsOnly | Add-Member -NotePropertyName "tags" -NotePropertyValue @("Vulnerability Summarization")
 
-            # Compare-Object -ReferenceObject $oldHostVulns -DifferenceObject $currentHostVulns -IncludeEqual -Property {$_.nessus.vulnerability.custom_hash}
+            #Compare-Object -ReferenceObject $oldHostVulns -DifferenceObject $currentHostVulns -IncludeEqual -Property {$_.nessus.vulnerability.custom_hash}
         }else{
             Write-Host "Failed to compare. One of the compared objects was likely null. Please investigate." -ForegroundColor Red
         }
