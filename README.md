@@ -23,13 +23,13 @@ As always, feel free to post issues / questions in this project to make it even 
     PowerShell->>Elasticsearch: Ingest Parsed XML Data via Elasticsearch API
 ```
 
-With some careful setup of your Elastic stack and a little PowerShell you can turn your .nessus files into this:
+With some careful setup of your Elastic stack and a little PowerShell, you can turn your *.nessus files into this:
 ![dashboard-simple-using-v8.18.3](./documentation/images/dashboard-simple-8.18.3.jpeg)
 
 
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
 
-Requirements
+[Requirements](https://github.com/nicpenning/Power-Nessie/wiki/%F0%9F%93%96-Overview#%EF%B8%8F-requirements)
 * Functioning Elastic Stack (7.0+, 8.18.3/9.0.3 Latest Tested)
 * PowerShell 7.0+ (7.5.1 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
@@ -59,7 +59,9 @@ Script includes a Menu to help you  use Power-Nessie:
 - [ ] Add Detection Rules
 
 ## Automated or Manual Download and Ingest capability - Check the [Wiki](https://github.com/nicpenning/Power-Nessie/wiki/Overview)!
-Invoke-Power-Nessie.ps1
+```Powershell
+.\Invoke-Power-Nessie.ps1
+```
 
 ## Full dashboard preview
 ![full-dashboard-using-v8.18.3](./documentation/images/dashboard-8.18.3.jpeg)
