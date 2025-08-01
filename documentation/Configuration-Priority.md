@@ -29,8 +29,7 @@
 
 **Example:**
 ```powershell
-.
-Invoke-Power-Nessie.ps1 -Configuration_File_Path "C:\path\to\configuration.json"
+.\Invoke-Power-Nessie.ps1 -Configuration_File_Path "C:\path\to\configuration.json"
 ```
 
 ### When to Use Command-Line Options
@@ -41,8 +40,7 @@ Invoke-Power-Nessie.ps1 -Configuration_File_Path "C:\path\to\configuration.json"
 
 **Example:**
 ```powershell
-.
-Invoke-Power-Nessie.ps1 -Nessus_URL "https://scanner.example.com:8834" -Nessus_Access_Key "XXXX" -Nessus_Secret_Key "YYYY"
+.\Invoke-Power-Nessie.ps1 -Nessus_URL "https://scanner.example.com:8834" -Nessus_Access_Key "XXXX" -Nessus_Secret_Key "YYYY"
 ```
 
 ---
