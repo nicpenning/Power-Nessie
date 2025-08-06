@@ -109,8 +109,6 @@ Removes the oldest scan from the scan history for a specified scan name in your 
 
 Exits the Power-Nessie script interface.
 
-See [Conclusion & Workflow Guidance](./Conclusion.md)
-
 ## 🎉 Conclusion & Workflow Guidance
 
 Power-Nessie provides a robust, modular toolkit for integrating Nessus vulnerability scans with the Elastic Stack using PowerShell. Each menu option is designed to support a specific part of your vulnerability management or compliance workflow — from initial environment setup, to scan export and ingest, to reporting and cleanup.
