@@ -1,4 +1,4 @@
-🔗 Back to [📖Overview](./documentation/Overview.md)
+🔗 Back to [📖Overview](./Overview.md)
 
 ### 0️⃣ **Setup Elasticsearch and Kibana.**
 
@@ -60,4 +60,4 @@ Then run:
 
 Use Option 0 to prepare your Elastic environment for Nessus vulnerability data ingestion and visualization. This step is required before importing any scans!
 
-🔗 Back to [📖Overview](./documentation/Overview.md)
+🔗 Back to [📖Overview](./Overview.md)
