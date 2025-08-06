@@ -45,61 +45,61 @@ Enter your choice:
 
 Configures your Elastic stack (Elasticsearch & Kibana) to properly ingest and visualize Nessus scan data prior to importing scans. This is a critical first step to ensure your vulnerability data is ready for analysis and reporting.
 
-[Full documentation and use cases here.](./documenation/Option-0.md)
+[Full documentation and use cases here.](./Option-0.md)
 
 ### 1️⃣ **Export Nessus Files.**
 
 Automates the extraction of Nessus scan files from your Nessus scanner and moves them to a local directory for further processing or archival. Optionally, the exported scans can be moved to an archive folder within Nessus.
 
-[Full documentation and use cases here.](./documenation/Option-1.md)
+[Full documentation and use cases here.](./Option-1.md)
 
 ### 2️⃣ **Ingest a Single Nessus File into Elasticsearch (Optional - Patch Summarization upon Completion)**
 
 Imports a single Nessus `.nessus` XML file into your Elasticsearch cluster, making vulnerability data immediately searchable and visualizable in Kibana. Optionally, you can enable Patch Summarization to compare scan results and highlight remediated vulnerabilities.
 
-[Full documentation and use cases here.](./documenation/Option-2.md)
+[Full documentation and use cases here.](./Option-2.md)
 
 ### 3️⃣ **Ingest All Nessus Files from a Specified Directory into Elasticsearch (Optional - Patch Summarization upon Completion)**
 
 Automates the bulk ingestion of all unprocessed Nessus `.nessus` files from a specified directory into your Elasticsearch cluster. Optionally, you can enable Patch Summarization to compare scan results and highlight remediated vulnerabilities.
 
-[Full documentation and use cases here.](./documenation/Option-3.md)
+[Full documentation and use cases here.](./Option-3.md)
 
 ### 4️⃣ **Export and Ingest Nessus Files into Elasticsearch (Optional - Patch Summarization upon Completion)**
 
 Performs a full end-to-end workflow by exporting Nessus scan files from your Nessus scanner, saving them locally, and then ingesting them into Elasticsearch for analysis and visualization.
 
-[Full documentation and use cases here.](./documenation/Option-4.md)
+[Full documentation and use cases here.](./Option-4.md)
 
 ### 5️⃣ **Purge Processed Hashes List**
 
 Removes the list of hashes that track which Nessus files have already been ingested by Power-Nessie. This "reset" option enables reprocessing and re-ingesting of previously imported `.nessus` files.
 
-[Full documentation and use cases here.](./documenation/Option-5.md)
+[Full documentation and use cases here.](./Option-5.md)
 
 ### 6️⃣ **Compare Scan Data Between Scans and Export Results into Elasticsearch (Patch Summarization)**
 
 Compares vulnerability data between two or more Nessus scans and exports the results into Elasticsearch. This option is designed for Patch Summarization.
 
-[Full documentation and use cases here.](./documenation/Option-6.md)
+[Full documentation and use cases here.](./Option-6.md)
 
 ### 7️⃣ **Export PDF or CSV Report from Kibana Dashboard and Optionally Send via Email**
 
 Automates the export of PDF or CSV reports from your Kibana dashboards, allowing you to generate and distribute visualizations of vulnerability data.
 
-[Full documentation and use cases here.](./documenation/Option-7.md)
+[Full documentation and use cases here.](./Option-7.md)
 
 ### 8️⃣ **Remove Processed Scans from Local Nessus File Download Directory**
 
 Automates the cleanup of processed Nessus scan files from your local download directory by removing files marked as ingested.
 
-[Full documentation and use cases here.](./documenation/Option-8.md)
+[Full documentation and use cases here.](./Option-8.md)
 
 ### 🔟 **Delete Oldest Scan from Scan History (Nessus Manager License Only)**
 
 Removes the oldest scan from the scan history for a specified scan name in your Nessus Manager environment.
 
-[Full documentation and use cases here.](./documenation/Option-10.md)
+[Full documentation and use cases here.](./Option-10.md)
 
 ### 🚫 **Quit**
 
