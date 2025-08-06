@@ -7,7 +7,7 @@
 ```PowerShell
 git clone https://github.com/nicpenning/Power-Nessie.git
 ```
-3. Setup Elasticsearch : Step by step instruction 👉🏻 [Option 0](./documentation/Option-0.md)
+3. Setup Elasticsearch : Step by step instruction 👉🏻 [Option 0](./Option-0.md)
 4. Run the Invoke-Power-Nessie.ps1 script supplying required variables for your use case and using the guided options.
 5. Watch the Nessus files get downloaded and then ingested into Elasticsearch - Resolve any issues along the way / Ask questions [here](https://github.com/nicpenning/Power-Nessie/discussions).
 
