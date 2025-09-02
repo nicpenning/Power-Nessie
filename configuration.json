@@ -25,6 +25,8 @@
     "Nessus_Scan_Date" : null,
     "Look_Back_Time_In_Days" : 7,
     "Look_Back_Iterations" : 3,
+    "Connection_Timout": 10,
+    "Operation_Timout": 30,
     "Elasticsearch_Scan_Filter" : null,
     "Elasticsearch_Scan_Filter_Type" : "include",
     "Execute_Patch_Summarization" : "false"

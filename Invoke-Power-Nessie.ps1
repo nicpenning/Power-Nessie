@@ -41,6 +41,8 @@
     -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,
     -Look_Back_Iterations 3,
+    -OperationTimeout 30
+    -ConnectionTimeout 10
     -Elasticsearch_Scan_Filter @("scan_1","scan2")
     -Elasticsearch_Scan_Filter_Type "include",
     -Remote_Elasticsearch_URL "http://127.0.0.1:9200"
@@ -158,6 +160,12 @@ Param (
     # Iterations to look back for hosts not found in first lookback.  (default 3)
     [Parameter(Mandatory=$false)]
     $Look_Back_Iterations = 3,
+    # How long to wait for a connection to start
+    [Parameter(Mandatory=$false)]
+    $ConnectionTimeout = 10,
+    # How long to wait for connection data
+    [Parameter(Mandatory=$false)]
+    $OperationTimeout = 30,
     # Custom scan names to include or exclude based on vulnerability.report_id (example - @("scan1","scan2"))
     [Parameter(Mandatory=$false)]
     $Elasticsearch_Scan_Filter = $null,
@@ -288,7 +296,7 @@ Begin{
     function getFolderIdFromName {
         param ($folderNames)
 
-        $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+        $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         Write-Host "Folders Found: "
         $folders.folders.Name | ForEach-Object {
             Write-Host "$_" -ForegroundColor Green
@@ -300,7 +308,7 @@ Begin{
     # Update Scan status
     function updateStatus {
         # Store the current Nessus Scans and their completing/running status to currentNessusScanData
-        $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+        $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
         if ($global:listOfScans) {
             Write-Host "Scans found!" -ForegroundColor Green
@@ -370,7 +378,7 @@ Begin{
         function getFolderIdFromName {
             param ($folderNames)
 
-            $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+            $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
             Write-Host "Folders Found: "
             $folders.folders.Name | ForEach-Object {
                 Write-Host "$_" -ForegroundColor Green
@@ -399,7 +407,7 @@ Begin{
         # Update Scan status
         function updateStatus {
             # Store the current Nessus Scans and their completing/running status to currentNessusScanData
-            $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+            $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
             $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
             if ($global:listOfScans) {
                 Write-Host "Scans found!`nName | Status | Creation Date | Scan ID" -ForegroundColor Green
@@ -429,7 +437,7 @@ Begin{
                 $global:listOfScans | ForEach-Object {
                     $currentId = $_.id
                     $scanName = $_.name
-                    $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+                    $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     $scanHistory.history | ForEach-Object {
                         if ($(convertToISO($_.creation_date) | Get-Date -format "dddd-d") -eq $getDate) {
                             # Write-Host "Going to export $_"
@@ -455,7 +463,7 @@ Begin{
                         # Get Scan History
                         $currentId = $_.id
                         $scanName = $_.name
-                        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+                        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                         if ($Nessus_Export_All_Scan_History -eq "true"){
                             Write-Host "Historical scans found: $($scanHistory.history.count)"
                             $scanHistory.history | ForEach-Object {
@@ -475,7 +483,7 @@ Begin{
                 folder_id = $archiveFolderId
             } | ConvertTo-Json
 
-            $ScanDetails = Invoke-RestMethod -Method Put -Uri "$Nessus_URL/scans/$($scanId)/folder" -Body $body -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+            $ScanDetails = Invoke-RestMethod -Method Put -Uri "$Nessus_URL/scans/$($scanId)/folder" -Body $body -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
             Write-Host $ScanDetails -ForegroundColor Yellow
             Write-Host "Scan Moved to Archive - Export Complete." -ForegroundColor Green
         }
@@ -499,11 +507,11 @@ Begin{
                     } | ConvertTo-Json
                     # Start the export process to Nessus has the file prepared for download
                     if($historyId){$historyIdFound = "?history_id=$historyId"}else {$historyId = $null}
-                    $exportInfo = Invoke-RestMethod -Method Post "$Nessus_URL/scans/$($scanId)/export$($historyIdFound)" -Body $scanExportOptions -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+                    $exportInfo = Invoke-RestMethod -Method Post "$Nessus_URL/scans/$($scanId)/export$($historyIdFound)" -Body $scanExportOptions -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     $exportStatus = ''
                     while ($exportStatus.status -ne 'ready') {
                         try {
-                            $exportStatus = Invoke-RestMethod -Method Get "$Nessus_URL/scans/$($ScanId)/export/$($exportInfo.file)/status" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+                            $exportStatus = Invoke-RestMethod -Method Get "$Nessus_URL/scans/$($ScanId)/export/$($exportInfo.file)/status" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                             Write-Host "Export status: $($exportStatus.status)"
                         }
                         catch {
@@ -513,7 +521,7 @@ Begin{
                         Start-Sleep -Seconds 1
                     }
                     # Time to download the Nessus scan!
-                    Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)/export/$($exportInfo.file)/download" -ContentType "application/json" -Headers $headers -OutFile $exportFileName -SkipCertificateCheck
+                    Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)/export/$($exportInfo.file)/download" -ContentType "application/json" -Headers $headers -OutFile $exportFileName -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     $exportComplete = 1
                     Write-Host "Export succeeded!" -ForegroundColor Green
                     if ($null -ne $Nessus_Archive_Folder_Name) {
@@ -798,7 +806,7 @@ Begin{
             # Uncomment below to see the hash
             #$hash
             $ProgressPreference = 'SilentlyContinue'
-            $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck
+            $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
 
             # Error checking
             #$data.items | ConvertTo-Json -Depth 5
@@ -908,7 +916,7 @@ Begin{
         } else {
             Write-Host "Valid scan name found ($Nessus_Scan_Name_To_Delete_Oldest_Scan)" -ForegroundColor Green
         }
-        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         $scanHistorySorted = $scanHistory.history | Select-Object -Property history_id, @{Name='creation_date'; Expression={convertToISO($_.creation_date)|Get-Date -Format 'MM/dd/yyyy HH:mm:ss'}}, status | Sort-Object -Property creation_date
         $oldestStartDate =  $scanHistorySorted[0].creation_date
         $oldestStatus = $scanHistorySorted[0].status
@@ -919,7 +927,7 @@ Begin{
         try{
             # Delete scan
             Write-Host "Deleting scan! $Nessus_Scan_Name_To_Delete_Oldest_Scan (Id-$scanId,History Id-$oldestHistoryId)" -ForegroundColor Magenta
-            $deleteScan = Invoke-RestMethod -Method Delete -Uri "$Nessus_URL/scans/$($scanId)/history/$oldestHistoryId" -ContentType "application/json" -Headers $headers -SkipCertificateCheck
+            $deleteScan = Invoke-RestMethod -Method Delete -Uri "$Nessus_URL/scans/$($scanId)/history/$oldestHistoryId" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
             Write-Host "Scan successfully deleted!"
         } catch {
             Write-Host "Scan could not be deleted. $_"
@@ -949,7 +957,7 @@ Begin{
         $queryResults = @()
 
         # Create Point In Time Query for pagination (PIT)
-        $pitSearch = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_pit?keep_alive=1m" -Method POST -Headers $global:AuthenticationHeaders -ContentType "application/json" -SkipCertificateCheck
+        $pitSearch = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_pit?keep_alive=1m" -Method POST -Headers $global:AuthenticationHeaders -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         $pitID = $pitSearch.id
 
         $getAllHostsWithVulnsQueryBySeverityAllDocs = @"
@@ -1032,8 +1040,8 @@ Begin{
         # Query Elastic for vulnerability information based on time frame
         Write-Host "Querying Elastic for $severity vulnerability data." -ForegroundColor Blue
 
-        #$ingestResults = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverity -ContentType "application/json" -SkipCertificateCheck
-        $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck; 
+        #$ingestResults = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverity -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+        $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck;  -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
 
         # Write-Host "Hosts found with $($severity): $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
         Write-Host "Events found with $($severity): $($queryResults.hits.hits.count)" -ForegroundColor Green
@@ -1118,7 +1126,7 @@ Begin{
             ]
             }
 "@
-            $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocsSearchAfter -ContentType "application/json" -SkipCertificateCheck; 
+            $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocsSearchAfter -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout; 
             Write-Host $queryResults.hits.hits.count
 
         } while ($queryResults[-1].hits.hits.count -ge 5000)
@@ -1303,7 +1311,7 @@ Begin{
 
         # Query Elastic for vulnerability information based on time frame
         Write-Host "Querying Elastic for hosts without vulnerabilities." -ForegroundColor Blue
-        $ingestResults = Invoke-RestMethod $Elasticsearch_URL/$Elasticsearch_Index_Name/_search -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithNoVulnsQuery -ContentType "application/json" -SkipCertificateCheck
+        $ingestResults = Invoke-RestMethod $Elasticsearch_URL/$Elasticsearch_Index_Name/_search -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithNoVulnsQuery -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         Write-Host "Results found: $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
         
         $hostWithNoVulnerabilities = $ingestResults.aggregations."0".buckets | Where-Object {$_."1-bucket".doc_count -eq 0}
@@ -1627,7 +1635,7 @@ Begin{
             $hashToIngest += "{`"create`":{ } }`r`n$obj`r`n"
         }
         
-        $ingestResults = Invoke-RestMethod $Remote_Elasticsearch_URL/$Remote_Elasticsearch_Index_Name/_bulk -Method POST -Headers $global:AuthenticationHeadersRemote -Body $hashToIngest -ContentType "application/x-ndjson; charset=utf-8" -SkipCertificateCheck
+        $ingestResults = Invoke-RestMethod $Remote_Elasticsearch_URL/$Remote_Elasticsearch_Index_Name/_bulk -Method POST -Headers $global:AuthenticationHeadersRemote -Body $hashToIngest -ContentType "application/x-ndjson; charset=utf-8" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
         
         if($ingestResults.errors -ne "True"){
             Write-Host "Results ingested: $($ingestResults.items.count)" -ForegroundColor "Green"
@@ -1928,7 +1936,7 @@ Process {
                 $ingestPipelineJSON = Get-Content $(Join-Path .\pipelines -ChildPath "$pipelineName.json")
                 $ingestPipelineURL = $Elasticsearch_URL+"/_ingest/pipeline/"+$pipelineName
                 try { 
-                    $createPipeline = Invoke-RestMethod -Method PUT -Uri $ingestPipelineURL -Body $ingestPipelineJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
+                    $createPipeline = Invoke-RestMethod -Method PUT -Uri $ingestPipelineURL -Body $ingestPipelineJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     if ($createPipeline.acknowledged -eq $true) {
                         Write-Host "The pipeline $pipelineName was successfully created!" -ForegroundColor Green
                         Write-Host "Check it out here: $Kibana_URL/app/management/ingest/ingest_pipelines/?pipeline=$pipelineName" -ForegroundColor Blue
@@ -1945,7 +1953,7 @@ Process {
                 $indexTemplateNameJSON = Get-Content $(Join-Path .\templates -ChildPath "$indexTemplateName.json")
                 $indexTemplateURL = $Elasticsearch_URL+"/_index_template/"+$indexTemplateName
                 try { 
-                    $createIndexTemplate = Invoke-RestMethod -Method PUT -Uri $indexTemplateURL -Body $indexTemplateNameJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
+                    $createIndexTemplate = Invoke-RestMethod -Method PUT -Uri $indexTemplateURL -Body $indexTemplateNameJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     if ($createIndexTemplate.acknowledged -eq $true) {
                         Write-Host "The index template $indexTemplateName was successfully created!" -ForegroundColor Green
                         Write-Host "Check it out here: $Kibana_URL/app/management/data/index_management/templates/$indexTemplateName" -ForegroundColor Blue
@@ -1975,7 +1983,7 @@ Process {
                         "--$boundary--$LF" 
                     ) -join $LF
     
-                    $result = Invoke-RestMethod -Method POST -Uri $importSavedObjectsURL -Headers $kibanaHeader -ContentType "multipart/form-data; boundary=`"$boundary`"" -Body $bodyLines -AllowUnencryptedAuthentication -SkipCertificateCheck
+                    $result = Invoke-RestMethod -Method POST -Uri $importSavedObjectsURL -Headers $kibanaHeader -ContentType "multipart/form-data; boundary=`"$boundary`"" -Body $bodyLines -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     if($result.errors -or $null -eq $result){
                         Write-Host "There was an error trying to import $filename" -ForegroundColor Red
                         $result.errors
@@ -1992,7 +2000,7 @@ Process {
                 $logsNessusAPIKeyJSON = Get-Content $(Join-Path .\templates -ChildPath "$logsNessusAPIKey.json")
                 $createAPIKeyURL = $Elasticsearch_URL+"/_security/api_key"
                 try { 
-                    $createAPIKey = Invoke-RestMethod -Method PUT -Uri $createAPIKeyURL -Body $logsNessusAPIKeyJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
+                    $createAPIKey = Invoke-RestMethod -Method PUT -Uri $createAPIKeyURL -Body $logsNessusAPIKeyJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
                     if ($createAPIKey.encoded) {
                         Write-Host "The Nessus API key was successfully created!" -ForegroundColor Green
                         Write-Host "Here is your encoded API Key that can be used to ingest your Nessus scan data into the $($createApiKey.name) data stream.`nStore in a safe place: $($createApiKey.encoded)"
