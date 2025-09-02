@@ -806,7 +806,18 @@ Begin{
             # Uncomment below to see the hash
             #$hash
             $ProgressPreference = 'SilentlyContinue'
-            $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+            $num_errors = 0
+            do {
+              $reqOk=$false
+              try {
+                $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+                $reqOk=$true
+              } catch {
+                $num_errors += 1
+                Write-Host "Request timed out, retry $num_errors" -ForegroundColor Yellow
+                Start-Sleep -Seconds 1
+              }
+            } until ($reqOk)
 
             # Error checking
             #$data.items | ConvertTo-Json -Depth 5
@@ -1041,7 +1052,18 @@ Begin{
         Write-Host "Querying Elastic for $severity vulnerability data." -ForegroundColor Blue
 
         #$ingestResults = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverity -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
-        $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck;  -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+        $num_errors = 0
+        do {
+            $reqOk=$false
+            try {
+            $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck;  -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+            $reqOk=$true
+            } catch {
+            $num_errors += 1
+            Write-Host "Request timed out, retry $num_errors" -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+            }
+        } until ($reqOk)
 
         # Write-Host "Hosts found with $($severity): $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
         Write-Host "Events found with $($severity): $($queryResults.hits.hits.count)" -ForegroundColor Green
@@ -1635,7 +1657,18 @@ Begin{
             $hashToIngest += "{`"create`":{ } }`r`n$obj`r`n"
         }
         
-        $ingestResults = Invoke-RestMethod $Remote_Elasticsearch_URL/$Remote_Elasticsearch_Index_Name/_bulk -Method POST -Headers $global:AuthenticationHeadersRemote -Body $hashToIngest -ContentType "application/x-ndjson; charset=utf-8" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+        $num_errors = 0
+        do {
+            $reqOk=$false
+            try {
+            $ingestResults = Invoke-RestMethod $Remote_Elasticsearch_URL/$Remote_Elasticsearch_Index_Name/_bulk -Method POST -Headers $global:AuthenticationHeadersRemote -Body $hashToIngest -ContentType "application/x-ndjson; charset=utf-8" -SkipCertificateCheck -ConnectionTimeoutSeconds $ConnectionTimeout -OperationTimeoutSeconds $OperationTimeout
+            $reqOk=$true
+            } catch {
+            $num_errors += 1
+            Write-Host "Request timed out, retry $num_errors" -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+            }
+        } until ($reqOk)
         
         if($ingestResults.errors -ne "True"){
             Write-Host "Results ingested: $($ingestResults.items.count)" -ForegroundColor "Green"
