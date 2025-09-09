@@ -41,8 +41,8 @@
     -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,
     -Look_Back_Iterations 3,
-    -Connection_Timeout 10,
-    -Operation_Timeout 30,
+    -Connection_Timeout 0,
+    -Operation_Timeout 0,
     -Elasticsearch_Scan_Filter @("scan_1","scan2")
     -Elasticsearch_Scan_Filter_Type "include",
     -Remote_Elasticsearch_URL "http://127.0.0.1:9200"
