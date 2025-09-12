@@ -16,9 +16,10 @@ To fully automate the ingestion on a daily, weekly, or monthly schedule you coul
 ## 📃 Options
 Invoking this script provides an assortment of menu options you can use for your use case!
 
-```
+```PowerShell
 .\Invoke-Power-Nessie.ps1
-
+```
+```
 PowerShell version 7 detected, great!
 No configuration file supplied, using provided command line arguments.
 Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!
@@ -35,7 +36,7 @@ What would you like to do?
 
 Q. Quit
 
-Version 1.5.0
+Version 1.7.0
 Enter your choice:
 ```
 

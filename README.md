@@ -34,8 +34,30 @@ The Power-Nessie project is a simplified way of taking .nessus files and ingesti
 * PowerShell 7.0+ (7.5.2 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
-Script includes a Menu to help you  use Power-Nessie:
-![menu](./documentation/images/1.5.0-menu.png)
+Script includes a Menu to help you use Power-Nessie for Automated or Manual Download and Ingest Capabilities - Check the [Docs](./documentation/Overview.md)!
+```PowerShell
+.\Invoke-Power-Nessie.ps1
+```
+```
+PowerShell version 7 detected, great!
+No configuration file supplied, using provided command line arguments.
+Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!
+What would you like to do?
+0. Setup Elasticsearch and Kibana.
+1. Export Nessus files.
+2. Ingest a single Nessus file into Elasticsearch (Optional - Patch summarization upon completion).
+3. Ingest all Nessus files from a specified directory into Elasticsearch (Optional - Patch summarization upon completion).
+4. Export and Ingest Nessus files into Elasticsearch (Optional - Patch summarization upon completion).
+5. Purge processed hashes list (Remove list of what files have already been processed).
+6. Compare scan data between scans and export results into Elasticsearch (Patch summarization).
+7. Export PDF or CSV Report from Kibana dashboard and optionally send via Email (Advanced Options - Copy POST URL).
+8. Remove processed scans from local Nessus file download directory (May be used optionally with -Remove_Processed_Scans_By_Days).
+
+Q. Quit
+
+Version 1.7.0
+Enter your choice:
+```
 
 ## Now
 - [X] Index Template
@@ -57,11 +79,6 @@ Script includes a Menu to help you  use Power-Nessie:
 
 ## Future
 - [ ] Add Detection Rules
-
-## Automated or Manual Download and Ingest capability - Check the [Docs](./documentation/Overview.md)!
-```Powershell
-.\Invoke-Power-Nessie.ps1
-```
 
 ## Full dashboard preview
 ![full-dashboard-using-v9.1.3](./documentation/images/dashboard-9.1.3.jpeg)
