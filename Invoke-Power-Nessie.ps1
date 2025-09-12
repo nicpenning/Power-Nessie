@@ -43,7 +43,7 @@
     -Look_Back_Iterations 3,
     -Connection_Timeout 0,
     -Operation_Timeout 0,
-    -Elasticsearch_Scan_Filter @("scan_1","scan2")
+    -Elasticsearch_Scan_Filter @("scan_1","scan2"),
     -Elasticsearch_Scan_Filter_Type "include",
     -Remote_Elasticsearch_URL "http://127.0.0.1:9200"
     -Remote_Elasticsearch_Index_Name = "logs-nessus.vulnerability-summary",
@@ -271,7 +271,7 @@ Begin{
     $option8 = "8. Remove processed scans from local Nessus file download directory (May be used optionally with -Remove_Processed_Scans_By_Days)."
     #$option10 = "10. Delete oldest scan from scan history (Future / Only works with Nessus Manager license)"
     $quit = "Q. Quit"
-    $version = "`nVersion 1.6.0"
+    $version = "`nVersion 1.6.1"
 
     function Show-Menu {
         Write-Host "Welcome to the PowerShell script that can export and ingest Nessus scan files into an Elastic stack!" -ForegroundColor Blue
