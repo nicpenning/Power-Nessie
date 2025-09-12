@@ -426,7 +426,30 @@ Begin{
         function getFolderIdFromName {
             param ($folderNames)
 
-            $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+            $numErrors = 0
+            $maxRetries = 5
+            $retryCount = 0
+            do {
+                $reqOk = $false
+                try {
+                    $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $reqOk = $true
+                } catch {
+                    if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                        $numErrors += 1
+                        $retryCount += 1
+                        Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                        Start-Sleep -Seconds 1
+                    } else {
+                        Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                        break
+                    }
+                }
+            } until ($reqOk -or $retryCount -ge $maxRetries)
+            if (-not $reqOk) {
+                Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
+                return
+            }
             Write-Host "Folders Found: "
             $folders.folders.Name | ForEach-Object {
                 Write-Host "$_" -ForegroundColor Green
@@ -455,7 +478,30 @@ Begin{
         # Update Scan status
         function updateStatus {
             # Store the current Nessus Scans and their completing/running status to currentNessusScanData
-            $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+            $numErrors = 0
+            $maxRetries = 5
+            $retryCount = 0
+            do {
+                $reqOk = $false
+                try {
+                    $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $reqOk = $true
+                } catch {
+                    if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                        $numErrors += 1
+                        $retryCount += 1
+                        Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                        Start-Sleep -Seconds 1
+                    } else {
+                        Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                        break
+                    }
+                }
+            } until ($reqOk -or $retryCount -ge $maxRetries)
+            if (-not $reqOk) {
+                Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
+                return
+            }
             $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
             if ($global:listOfScans) {
                 Write-Host "Scans found!`nName | Status | Creation Date | Scan ID" -ForegroundColor Green
@@ -534,7 +580,30 @@ Begin{
                         # Get Scan History
                         $currentId = $_.id
                         $scanName = $_.name
-                        $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                        $numErrors = 0
+                        $maxRetries = 5
+                        $retryCount = 0
+                        do {
+                            $reqOk = $false
+                            try {
+                                $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                                $reqOk = $true
+                            } catch {
+                                if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                    $numErrors += 1
+                                    $retryCount += 1
+                                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                    Start-Sleep -Seconds 1
+                                } else {
+                                    Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                    break
+                                }
+                            }
+                        } until ($reqOk -or $retryCount -ge $maxRetries)
+                        if (-not $reqOk) {
+                            Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
+                            return
+                        }
                         if ($Nessus_Export_All_Scan_History -eq "true"){
                             Write-Host "Historical scans found: $($scanHistory.history.count)"
                             $scanHistory.history | ForEach-Object {
@@ -947,17 +1016,28 @@ Begin{
             #$hash
             $ProgressPreference = 'SilentlyContinue'
             $numErrors = 0
+            $maxRetries = 5
+            $retryCount = 0
             do {
-                $reqOk=$false
+                $reqOk = $false
                 try {
-                    $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
-                    $reqOk=$true
+                    $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -Body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $reqOk = $true
                 } catch {
-                    $numErrors += 1
-                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
-                    Start-Sleep -Seconds 1
+                    if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                        $numErrors += 1
+                        $retryCount += 1
+                        Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                        Start-Sleep -Seconds 1
+                    } else {
+                        Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                        break
+                    }
                 }
-            } until ($reqOk)
+            } until ($reqOk -or $retryCount -ge $maxRetries)
+            if (-not $reqOk) {
+                Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
+            }
 
             # Error checking
             #$data.items | ConvertTo-Json -Depth 5
@@ -1091,8 +1171,8 @@ Begin{
     # Create a new date based on shift in days
     function dateShift {
         param (
-        $date,
-        $daysToShiftBackwards
+            $date,
+            $daysToShiftBackwards
         )
         $newDate = $((Get-Date $date).AddDays(-$daysToShiftBackwards)) | Get-Date -Format "o" -AsUTC
         return $newDate
@@ -1108,7 +1188,30 @@ Begin{
         $queryResults = @()
 
         # Create Point In Time Query for pagination (PIT)
-        $pitSearch = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_pit?keep_alive=1m" -Method POST -Headers $global:AuthenticationHeaders -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+        $numErrors = 0
+        $maxRetries = 5
+        $retryCount = 0
+        do {
+            $reqOk = $false
+            try {
+                $pitSearch = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_pit?keep_alive=1m" -Method POST -Headers $global:AuthenticationHeaders -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                $reqOk = $true
+            } catch {
+                if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                    $numErrors += 1
+                    $retryCount += 1
+                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                    Start-Sleep -Seconds 1
+                } else {
+                    Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                    break
+                }
+            }
+        } until ($reqOk -or $retryCount -ge $maxRetries)
+        if (-not $reqOk) {
+            Write-Host "Failed to retrieve PIT after $maxRetries retries. Exiting." -ForegroundColor Red
+            return
+        }
         $pitID = $pitSearch.id
 
         $getAllHostsWithVulnsQueryBySeverityAllDocs = @"
@@ -1299,7 +1402,29 @@ Begin{
             ]
             }
 "@
-            $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocsSearchAfter -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout; 
+            $numErrors = 0
+            $maxRetries = 5
+            $retryCount = 0
+            do {
+                $reqOk = $false
+                try {
+                    $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocsSearchAfter -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $reqOk = $true
+                } catch {
+                    if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                        $numErrors += 1
+                        $retryCount += 1
+                        Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                        Start-Sleep -Seconds 1
+                    } else {
+                        Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                        break
+                    }
+                }
+            } until ($reqOk -or $retryCount -ge $maxRetries)
+            if (-not $reqOk) {
+                Write-Host "Failed to retrieve data after $maxRetries retries. Exiting query loop." -ForegroundColor Red
+            }
             Write-Host $queryResults.hits.hits.count
 
         } while ($queryResults[-1].hits.hits.count -ge 5000)
@@ -2120,7 +2245,7 @@ Process {
                 $ingestPipelineJSON = Get-Content $(Join-Path .\pipelines -ChildPath "$pipelineName.json")
                 $ingestPipelineURL = $Elasticsearch_URL+"/_ingest/pipeline/"+$pipelineName
                 try { 
-                    $createPipeline = Invoke-RestMethod -Method PUT -Uri $ingestPipelineURL -Body $ingestPipelineJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $createPipeline = Invoke-RestMethod -Method PUT -Uri $ingestPipelineURL -Body $ingestPipelineJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
                     if ($createPipeline.acknowledged -eq $true) {
                         Write-Host "The pipeline $pipelineName was successfully created!" -ForegroundColor Green
                         Write-Host "Check it out here: $Kibana_URL/app/management/ingest/ingest_pipelines/?pipeline=$pipelineName" -ForegroundColor Blue
@@ -2137,7 +2262,7 @@ Process {
                 $indexTemplateNameJSON = Get-Content $(Join-Path .\templates -ChildPath "$indexTemplateName.json")
                 $indexTemplateURL = $Elasticsearch_URL+"/_index_template/"+$indexTemplateName
                 try { 
-                    $createIndexTemplate = Invoke-RestMethod -Method PUT -Uri $indexTemplateURL -Body $indexTemplateNameJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $createIndexTemplate = Invoke-RestMethod -Method PUT -Uri $indexTemplateURL -Body $indexTemplateNameJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
                     if ($createIndexTemplate.acknowledged -eq $true) {
                         Write-Host "The index template $indexTemplateName was successfully created!" -ForegroundColor Green
                         Write-Host "Check it out here: $Kibana_URL/app/management/data/index_management/templates/$indexTemplateName" -ForegroundColor Blue
@@ -2167,7 +2292,7 @@ Process {
                         "--$boundary--$LF" 
                     ) -join $LF
     
-                    $result = Invoke-RestMethod -Method POST -Uri $importSavedObjectsURL -Headers $kibanaHeader -ContentType "multipart/form-data; boundary=`"$boundary`"" -Body $bodyLines -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $result = Invoke-RestMethod -Method POST -Uri $importSavedObjectsURL -Headers $kibanaHeader -ContentType "multipart/form-data; boundary=`"$boundary`"" -Body $bodyLines -AllowUnencryptedAuthentication -SkipCertificateCheck
                     if($result.errors -or $null -eq $result){
                         Write-Host "There was an error trying to import $filename" -ForegroundColor Red
                         $result.errors
@@ -2184,7 +2309,7 @@ Process {
                 $logsNessusAPIKeyJSON = Get-Content $(Join-Path .\templates -ChildPath "$logsNessusAPIKey.json")
                 $createAPIKeyURL = $Elasticsearch_URL+"/_security/api_key"
                 try { 
-                    $createAPIKey = Invoke-RestMethod -Method PUT -Uri $createAPIKeyURL -Body $logsNessusAPIKeyJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $createAPIKey = Invoke-RestMethod -Method PUT -Uri $createAPIKeyURL -Body $logsNessusAPIKeyJSON -ContentType "application/json" -Credential $Elasticsearch_Credentials -AllowUnencryptedAuthentication -SkipCertificateCheck
                     if ($createAPIKey.encoded) {
                         Write-Host "The Nessus API key was successfully created!" -ForegroundColor Green
                         Write-Host "Here is your encoded API Key that can be used to ingest your Nessus scan data into the $($createApiKey.name) data stream.`nStore in a safe place: $($createApiKey.encoded)"

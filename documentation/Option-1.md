@@ -29,6 +29,8 @@ Note: The archive feature only works when the Nessus_Archive_Folder_Name (destin
 | **Nessus_Export_Day**                           | `$null`                              | Specify a date (`MM/DD/YYYY`) to export scans from that day.                                                                 |
 | **Nessus_Export_Custom_Extended_File_Name_Attribute** | `$null`                        | String appended to exported filenames for uniqueness (e.g., `"_scanner1"`).                                                  |
 | **Nessus_Export_All_Scan_History**              | `$null`                              | Set to `"true"` to export all scan history, not just the latest scan.                                                        |
+| **Connection_Timeout**                          | `0`                                  | How long to wait for a connection to start (seconds).                                                                        |
+| **Operation_Timeout**                           | `0`                                  | How long to wait for connection data (seconds).                                                                              |
 | **Configuration_File_Path**                     | `$null`                              | Optional path to a JSON configuration file to load all variables.                                                            |
 
 #### Default Values Example

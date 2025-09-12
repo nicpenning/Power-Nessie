@@ -24,6 +24,8 @@ Compares vulnerability data between two or more Nessus scans and exports the res
 | **Remote_Elasticsearch_Index_Name**           | `"logs-nessus.vulnerability-summary"`         | Optional: Index name for remote cluster summary results.                                                  |
 | **Remote_Elasticsearch_Api_Key**              | `$null`                                      | Optional: API key for remote cluster summary ingest.                                                      |
 | **Remote_Elasticsearch_Custom_Authentication_Header** | `"ApiKey"`                          | Custom text for remote Elasticsearch authentication header.                                               |
+| **Connection_Timeout**                        | `0`                                          | How long to wait for a connection to start (seconds).                                                     |
+| **Operation_Timeout**                         | `0`                                          | How long to wait for connection data (seconds).                                                           |
 | **Nessus_Base_Comparison_Scan_Date**          | (none)                                       | Date(s) for base scan(s) to compare against, e.g., `@("3/5/2024","3/6/2024")`.                           |
 | **Look_Back_Time_In_Days**                    | `7`                                          | Number of days to look back for comparison.                                                               |
 | **Look_Back_Iterations**                      | `3`                                          | Number of iterations to look back for hosts not found in first lookback.                                  |
