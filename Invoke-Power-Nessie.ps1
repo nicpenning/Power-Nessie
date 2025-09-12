@@ -243,6 +243,8 @@ Begin{
             if($null -ne $configurationSettings.Nessus_Base_Comparison_Scan_Date){$Nessus_Base_Comparison_Scan_Date = $configurationSettings.Nessus_Base_Comparison_Scan_Date}
             if($null -ne $configurationSettings.Look_Back_Time_In_Days){$Look_Back_Time_In_Days = $configurationSettings.Look_Back_Time_In_Days}
             if($null -ne $configurationSettings.Look_Back_Iterations){$Look_Back_Iterations = $configurationSettings.Look_Back_Iterations}
+            if($null -ne $configurationSettings.Connection_Timeout){$Connection_Timeout = $configurationSettings.Connection_Timeout}
+            if($null -ne $configurationSettings.Operation_Timeout){$Operation_Timeout = $configurationSettings.Operation_Timeout}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter){$Elasticsearch_Scan_Filter = $configurationSettings.Elasticsearch_Scan_Filter}
             if($null -ne $configurationSettings.Elasticsearch_Scan_Filter_Type){$Elasticsearch_Scan_Filter_Type = $configurationSettings.Elasticsearch_Scan_Filter_Type}
             if($null -ne $configurationSettings.Remote_Elasticsearch_URL){$Remote_Elasticsearch_URL = $configurationSettings.Remote_Elasticsearch_URL}
@@ -296,7 +298,30 @@ Begin{
     function getFolderIdFromName {
         param ($folderNames)
 
-        $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+        $numErrors = 0
+        $maxRetries = 5
+        $retryCount = 0
+        do {
+            $reqOk = $false
+            try {
+                $folders = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/folders" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                $reqOk = $true
+            } catch {
+                if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                    $numErrors += 1
+                    $retryCount += 1
+                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                    Start-Sleep -Seconds 1
+                } else {
+                    Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                    break
+                }
+            }
+        } until ($reqOk -or $retryCount -ge $maxRetries)
+        if (-not $reqOk) {
+            Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
+            return
+        }
         Write-Host "Folders Found: "
         $folders.folders.Name | ForEach-Object {
             Write-Host "$_" -ForegroundColor Green
@@ -308,7 +333,30 @@ Begin{
     # Update Scan status
     function updateStatus {
         # Store the current Nessus Scans and their completing/running status to currentNessusScanData
-        $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+        $numErrors = 0
+        $maxRetries = 5
+        $retryCount = 0
+        do {
+            $reqOk = $false
+            try {
+                $global:currentNessusScanDataRaw = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans?folder_id=$($global:sourceFolderId)" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                $reqOk = $true
+            } catch {
+                if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                    $numErrors += 1
+                    $retryCount += 1
+                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                    Start-Sleep -Seconds 1
+                } else {
+                    Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                    break
+                }
+            }
+        } until ($reqOk -or $retryCount -ge $maxRetries)
+        if (-not $reqOk) {
+            Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
+            return
+        }
         $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
         if ($global:listOfScans) {
             Write-Host "Scans found!" -ForegroundColor Green
@@ -437,7 +485,30 @@ Begin{
                 $global:listOfScans | ForEach-Object {
                     $currentId = $_.id
                     $scanName = $_.name
-                    $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $numErrors = 0
+                    $maxRetries = 5
+                    $retryCount = 0
+                    do {
+                        $reqOk = $false
+                        try {
+                            $scanHistory = Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($currentId)?limit=2500" -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                            $reqOk = $true
+                        } catch {
+                            if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                $numErrors += 1
+                                $retryCount += 1
+                                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                Start-Sleep -Seconds 1
+                            } else {
+                                Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                break
+                            }
+                        }
+                    } until ($reqOk -or $retryCount -ge $maxRetries)
+                    if (-not $reqOk) {
+                        Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
+                        return
+                    }
                     $scanHistory.history | ForEach-Object {
                         if ($(convertToISO($_.creation_date) | Get-Date -format "dddd-d") -eq $getDate) {
                             # Write-Host "Going to export $_"
@@ -483,7 +554,30 @@ Begin{
                 folder_id = $archiveFolderId
             } | ConvertTo-Json
 
-            $ScanDetails = Invoke-RestMethod -Method Put -Uri "$Nessus_URL/scans/$($scanId)/folder" -Body $body -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+            $numErrors = 0
+            $maxRetries = 5
+            $retryCount = 0
+            do {
+                $reqOk = $false
+                try {
+                    $ScanDetails = Invoke-RestMethod -Method Put -Uri "$Nessus_URL/scans/$($scanId)/folder" -Body $body -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $reqOk = $true
+                } catch {
+                    if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                        $numErrors += 1
+                        $retryCount += 1
+                        Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                        Start-Sleep -Seconds 1
+                    } else {
+                        Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                        break
+                    }
+                }
+            } until ($reqOk -or $retryCount -ge $maxRetries)
+            if (-not $reqOk) {
+                Write-Host "Failed to move scan to archive after $maxRetries retries. Exiting." -ForegroundColor Red
+                return
+            }
             Write-Host $ScanDetails -ForegroundColor Yellow
             Write-Host "Scan Moved to Archive - Export Complete." -ForegroundColor Green
         }
@@ -507,7 +601,30 @@ Begin{
                     } | ConvertTo-Json
                     # Start the export process to Nessus has the file prepared for download
                     if($historyId){$historyIdFound = "?history_id=$historyId"}else {$historyId = $null}
-                    $exportInfo = Invoke-RestMethod -Method Post "$Nessus_URL/scans/$($scanId)/export$($historyIdFound)" -Body $scanExportOptions -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $numErrors = 0
+                    $maxRetries = 5
+                    $retryCount = 0
+                    do {
+                        $reqOk = $false
+                        try {
+                            $exportInfo = Invoke-RestMethod -Method Post "$Nessus_URL/scans/$($scanId)/export$($historyIdFound)" -Body $scanExportOptions -ContentType "application/json" -Headers $headers -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                            $reqOk = $true
+                        } catch {
+                            if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                $numErrors += 1
+                                $retryCount += 1
+                                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                Start-Sleep -Seconds 1
+                            } else {
+                                Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                break
+                            }
+                        }
+                    } until ($reqOk -or $retryCount -ge $maxRetries)
+                    if (-not $reqOk) {
+                        Write-Host "Failed to start export after $maxRetries retries. Exiting." -ForegroundColor Red
+                        return
+                    }                    
                     $exportStatus = ''
                     while ($exportStatus.status -ne 'ready') {
                         try {
@@ -521,7 +638,30 @@ Begin{
                         Start-Sleep -Seconds 1
                     }
                     # Time to download the Nessus scan!
-                    Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)/export/$($exportInfo.file)/download" -ContentType "application/json" -Headers $headers -OutFile $exportFileName -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                    $numErrors = 0
+                    $maxRetries = 5
+                    $retryCount = 0
+                    do {
+                        $reqOk = $false
+                        try {
+                            Invoke-RestMethod -Method Get -Uri "$Nessus_URL/scans/$($scanId)/export/$($exportInfo.file)/download" -ContentType "application/json" -Headers $headers -OutFile $exportFileName -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                            $reqOk = $true
+                        } catch {
+                            if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                $numErrors += 1
+                                $retryCount += 1
+                                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                Start-Sleep -Seconds 1
+                            } else {
+                                Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                break
+                            }
+                        }
+                    } until ($reqOk -or $retryCount -ge $maxRetries)
+                    if (-not $reqOk) {
+                        Write-Host "Failed to download scan after $maxRetries retries. Exiting." -ForegroundColor Red
+                        return
+                    }                    
                     $exportComplete = 1
                     Write-Host "Export succeeded!" -ForegroundColor Green
                     if ($null -ne $Nessus_Archive_Folder_Name) {
@@ -1053,17 +1193,28 @@ Begin{
 
         #$ingestResults = Invoke-RestMethod "$Elasticsearch_URL/$Elasticsearch_Index_Name/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverity -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
         $numErrors = 0
+        $maxRetries = 5
+        $retryCount = 0
         do {
-            $reqOk=$false
+            $reqOk = $false
             try {
-                $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck;  -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
-                $reqOk=$true
+                $queryResults += Invoke-RestMethod "$Elasticsearch_URL/_search" -Method GET -Headers $global:AuthenticationHeaders -Body $getAllHostsWithVulnsQueryBySeverityAllDocs -ContentType "application/json" -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                $reqOk = $true
             } catch {
-                $numErrors += 1
-                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
-                Start-Sleep -Seconds 1
+                if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                    $numErrors += 1
+                    $retryCount += 1
+                    Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                    Start-Sleep -Seconds 1
+                } else {
+                    Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                    break
+                }
             }
-        } until ($reqOk)
+        } until ($reqOk -or $retryCount -ge $maxRetries)
+        if (-not $reqOk) {
+            Write-Host "Failed to retrieve data after $maxRetries retries. Exiting query loop." -ForegroundColor Red
+        }
 
         # Write-Host "Hosts found with $($severity): $($ingestResults.aggregations."0".buckets.count)" -ForegroundColor Green
         Write-Host "Events found with $($severity): $($queryResults.hits.hits.count)" -ForegroundColor Green
