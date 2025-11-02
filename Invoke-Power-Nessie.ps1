@@ -1827,21 +1827,27 @@ Begin{
     # Fields to contain from today: @timestamp, host.name, host.ip, nessus.vulnerability.custom_hash, nessus.plugin.id, destination.port, network.transport, vulnerability.id, vulnerability.module
     function generateDates {
         param (
-        $customDate
+            $customDate
         )
 
-        if($customDate){
-            # Set current start date of 12 AM in UTC based on day requested
-            $dateAfter= $(Get-Date $customDate -Hour 0 -Minute 0 -Second 0 -Millisecond 0 -Format "o" -AsUTC)
-            # Set current end date of day requested in UTC
-            $dateBefore = $(Get-Date $customDate -Hour 23 -Minute 59 -Second 59 -Millisecond 0 -Format "o" -AsUTC)
-        }else{
-            # Set current start date of 12 AM in UTC
-            $dateAfter = $(Get-Date -Hour 0 -Minute 0 -Second 0 -Millisecond 0 -Format "o" -AsUTC)
-            # Set current end date of now in UTC
-            $dateBefore = $(Get-Date -Format "o" -AsUTC)
-        }
+        # Use en-US culture to ensure MM/dd/yyyy parsing always works
+        $culture = [System.Globalization.CultureInfo]::GetCultureInfo('en-US')
 
+        if ($customDate) {
+            # Parse date explicitly using en-US regardless of OS locale
+            $dateParsed = [datetime]::Parse($customDate, $culture)
+
+            # Set current start date of 12 AM in UTC based on day requested
+            $dateAfter = Get-Date $dateParsed -Hour 0 -Minute 0 -Second 0 -Millisecond 0 -AsUTC -Format "o"
+            # Set current end date of day requested in UTC
+            $dateBefore = Get-Date $dateParsed -Hour 23 -Minute 59 -Second 59 -Millisecond 0 -AsUTC -Format "o"
+        }
+        else {
+            # Default behavior if no date is passed
+            $dateAfter = Get-Date -Hour 0 -Minute 0 -Second 0 -Millisecond 0 -AsUTC -Format "o"
+            $dateBefore = Get-Date -AsUTC -Format "o"
+        }
+        
         return $dateAfter, $dateBefore
     }
 
