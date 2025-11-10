@@ -2517,7 +2517,7 @@ Process {
                     $Nessus_File_Download_Location = Read-Host "Nessus File Download Location (default - Nessus Exports)"
                 }
 
-                Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key
+                Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Bulk_Import_Batch_Size $Elasticsearch_Bulk_Import_Batch_Size
                 
                 if($Execute_Patch_Summarization -eq $true){
                     # Execute Patch Summarization after scans have been ingested
