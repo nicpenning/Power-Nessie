@@ -203,7 +203,7 @@ Begin{
     } else {
         Write-Host "Old version of PowerShell detected $($PSVersionTable.PSVersion.Major). Please install PowerShell 7+. Exiting." -ForegroundColor Red
         Write-Host "No scans found." -ForegroundColor Red
-        Exit
+        exit
     }
     # Check for configuration.json file to load configuration settings and populate them all. This will override any arguments passed in for the command line.
     if($Configuration_File_Path){
@@ -320,7 +320,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         Write-Host "Folders Found: "
         $folders.folders.Name | ForEach-Object {
@@ -355,7 +355,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
         if ($global:listOfScans) {
@@ -448,7 +448,7 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
-                return
+                exit
             }
             Write-Host "Folders Found: "
             $folders.folders.Name | ForEach-Object {
@@ -500,7 +500,7 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
-                return
+                exit
             }
             $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
             if ($global:listOfScans) {
@@ -553,7 +553,7 @@ Begin{
                     } until ($reqOk -or $retryCount -ge $maxRetries)
                     if (-not $reqOk) {
                         Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
-                        return
+                        exit
                     }
                     $scanHistory.history | ForEach-Object {
                         if ($(convertToISO($_.creation_date) | Get-Date -format "dddd-d") -eq $getDate) {
@@ -602,7 +602,7 @@ Begin{
                         } until ($reqOk -or $retryCount -ge $maxRetries)
                         if (-not $reqOk) {
                             Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
-                            return
+                            exit
                         }
                         if ($Nessus_Export_All_Scan_History -eq "true"){
                             Write-Host "Historical scans found: $($scanHistory.history.count)"
@@ -729,7 +729,7 @@ Begin{
                     } until ($reqOk -or $retryCount -ge $maxRetries)
                     if (-not $reqOk) {
                         Write-Host "Failed to download scan after $maxRetries retries. Exiting." -ForegroundColor Red
-                        return
+                        exit
                     }                    
                     $exportComplete = 1
                     Write-Host "Export succeeded!" -ForegroundColor Green
@@ -1037,6 +1037,7 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
+                exit
             }
 
             # Error checking
@@ -1210,7 +1211,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve PIT after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         $pitID = $pitSearch.id
 
