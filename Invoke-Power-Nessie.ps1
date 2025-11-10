@@ -837,7 +837,14 @@ Begin{
         "
         $fileProcessed = (Get-ChildItem $Nessus_XML_File).name
         $reportName = $nessus.NessusClientData_v2.Report.name
+        $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.count
+        Write-Host "Processing file: $fileProcessed`nReport name: $reportName`nTotal hosts: $totalHostsFromScan" -ForegroundColor "Blue"
+        $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.Count
+        $hostCounter = 0
         foreach ($n in $nessus.NessusClientData_v2.Report.ReportHost) {
+            $hostCounter++
+            Show-ProgressBar -Current $hostCounter -Total $totalHostsFromScan -Activity "Processing Hosts" -Color "Green"
+
             foreach ($r in $n.ReportItem) {
                 foreach ($nHPTN_Item in $n.HostProperties.tag) {
                 # Get useful tag information from the report
@@ -2220,6 +2227,35 @@ Begin{
             $_
         }
     }
+
+    ### Progress Bar
+    function Show-ProgressBar {
+        param(
+            [int]$Current,
+            [int]$Total,
+            [string]$Activity = "Processing",
+            [datetime]$StartTime = (Get-Date),
+            [int]$BarLength = 30,
+            [ConsoleColor]$Color = "Cyan"
+        )
+
+        if ($Total -eq 0) { return }
+
+        $percent = [math]::Floor(($Current / $Total) * 100)
+        $filledLength = [math]::Floor(($BarLength * $percent) / 100)
+        $bar = ('█' * $filledLength) + ('░' * ($BarLength - $filledLength))
+
+        $elapsed = (Get-Date) - $StartTime
+        $eta = if ($Current -gt 0) {
+            [timespan]::FromSeconds(($elapsed.TotalSeconds / $Current) * ($Total - $Current))
+        } else { [timespan]::Zero }
+
+        $progress = "$Activity`: [$bar] $percent% ($Current/$Total) | ETA: $($eta.ToString('hh\:mm\:ss'))"
+
+        Write-Host -NoNewline "`r$progress" -ForegroundColor $Color
+        if ($Current -eq $Total) { Write-Host "" }
+    }
+
 }
 
 Process {
