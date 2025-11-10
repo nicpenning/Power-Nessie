@@ -116,6 +116,9 @@ Param (
     # Optionally customize the Elasticsearch Authorization ApiKey text to support third party security such as SearchGuard (Bearer). (default ApiKey) 
     [Parameter(Mandatory=$false)]
     $Elasticsearch_Custom_Authentication_Header = "ApiKey",
+    # Optionally set batch size for bulk imports (default 5000)
+    [Parameter(Mandatory=$false)]
+    $Elasticsearch_Bulk_Import_Batch_Size = 5000,
     # Add Kibana URL for setup. (default - https://127.0.0.1:5601)
     [Parameter(Mandatory=$false)]
     $Kibana_URL = "https://127.0.0.1:5601",
@@ -231,6 +234,7 @@ Begin{
             if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
             if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
             if($null -ne $configurationSettings.Elasticsearch_Custom_Authentication_Header){$Elasticsearch_Custom_Authentication_Header = $configurationSettings.Elasticsearch_Custom_Authentication_Header}
+            if($null -ne $configurationSettings.Elasticsearch_Bulk_Import_Batch_Size){$Elasticsearch_Bulk_Import_Batch_Size = $configurationSettings.Elasticsearch_Bulk_Import_Batch_Size}
             if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
             if($null -ne $configurationSettings.Kibana_Export_PDF_URL){$Kibana_Export_PDF_URL = $configurationSettings.Kibana_Export_PDF_URL}
             if($null -ne $configurationSettings.Kibana_Export_CSV_URL){$Kibana_Export_CSV_URL = $configurationSettings.Kibana_Export_CSV_URL}
@@ -782,7 +786,10 @@ Begin{
             $Elasticsearch_Index_Name,
             # Elasticsearch API Key
             [Parameter(Mandatory=$true)]
-            $Elasticsearch_API_Key
+            $Elasticsearch_API_Key,
+            # Batch size for bulk imports (default - 5000)
+            [Parameter(Mandatory=$false)]
+            $Elasticsearch_Bulk_Import_Batch_Size = 5000
         )
 
         $ErrorActionPreference = 'Stop'
@@ -838,10 +845,18 @@ Begin{
         $fileProcessed = (Get-ChildItem $Nessus_XML_File).name
         $reportName = $nessus.NessusClientData_v2.Report.name
         $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.count
-        Write-Host "Processing file: $fileProcessed`nReport name: $reportName`nTotal hosts: $totalHostsFromScan" -ForegroundColor "Blue"
+        Write-Host "Processing file: $fileProcessed`nReport name: $reportName`nTotal hosts: $totalHostsFromScan`nBatch size for bulk imports: $Elasticsearch_Bulk_Import_Batch_Size" -ForegroundColor "Blue"
         $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.Count
         $hostCounter = 0
+        
+        # Initialize global batch tracking across all hosts
+        $globalBatchBuffer = [System.Collections.Generic.List[string]]::new()
+        $globalDocCount = 0
+        $totalBatchesSent = 0
+        
         foreach ($n in $nessus.NessusClientData_v2.Report.ReportHost) {
+
+            # Set counter for progress bar
             $hostCounter++
             Show-ProgressBar -Current $hostCounter -Total $totalHostsFromScan -Activity "Processing Hosts" -Color "Green"
 
@@ -1000,7 +1015,46 @@ Begin{
 
                 } | ConvertTo-Json -Compress -Depth 5
                 
-                $hash += "{`"create`":{ } }`r`n$obj`r`n"
+                $globalBatchBuffer.Add("{`"create`":{ } }`r`n$obj`r`n")
+                $globalDocCount++
+                
+                # Check if batch size limit is reached
+                if ($globalDocCount -ge $Elasticsearch_Bulk_Import_Batch_Size) {
+                    # Send batch to Elasticsearch
+                    $ProgressPreference = 'SilentlyContinue'
+                    $hash = $globalBatchBuffer -join ""
+                    $numErrors = 0
+                    $maxRetries = 5
+                    $retryCount = 0
+                    do {
+                        $reqOk = $false
+                        try {
+                            $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -Body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                            $reqOk = $true
+                        } catch {
+                            if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                $numErrors += 1
+                                $retryCount += 1
+                                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                Start-Sleep -Seconds 1
+                            } else {
+                                Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                break
+                            }
+                        }
+                    } until ($reqOk -or $retryCount -ge $maxRetries)
+                    if (-not $reqOk) {
+                        Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
+                        exit
+                    }
+                    
+                    # Reset batch buffer and counters
+                    $globalBatchBuffer.Clear()
+                    $globalDocCount = 0
+                    $totalBatchesSent++
+                    Write-Host "Batch $totalBatchesSent sent to Elasticsearch ($($Elasticsearch_Bulk_Import_Batch_Size) documents)" -ForegroundColor Green
+                }
+                
                 # Clean up variables
                 $ip = $null
                 $fqdn = $null
@@ -1019,9 +1073,12 @@ Begin{
                 $hostEnd = $null
 
             }
-            # Uncomment below to see the hash
-            #$hash
+        }
+        
+        # Send any remaining documents in the buffer
+        if ($globalDocCount -gt 0) {
             $ProgressPreference = 'SilentlyContinue'
+            $hash = $globalBatchBuffer -join ""
             $numErrors = 0
             $maxRetries = 5
             $retryCount = 0
@@ -1046,13 +1103,12 @@ Begin{
                 Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
                 exit
             }
-
-            # Error checking
-            #$data.items | ConvertTo-Json -Depth 5
-
-            # Clean out $hash variable for later use
-            $hash = $null
+            
+            $totalBatchesSent++
+            Write-Host "Final batch $totalBatchesSent sent to Elasticsearch ($globalDocCount documents)" -ForegroundColor Green
         }
+        
+        Write-Host "Ingestion complete! Total batches sent: $totalBatchesSent" -ForegroundColor Green
     }
 
     function Invoke-Automate_Nessus_File_Imports {
@@ -1068,7 +1124,10 @@ Begin{
             $Elasticsearch_Index_Name,
             # Elasticsearch Api Key
             [Parameter(Mandatory=$true)]
-            $Elasticsearch_API_Key
+            $Elasticsearch_API_Key,
+            # Batch size for bulk imports (default - 5000)
+            [Parameter(Mandatory=$false)]
+            $Elasticsearch_Bulk_Import_Batch_Size = 5000
         )
 
         $ProcessedHashesPath = "ProcessedHashes.txt"
@@ -1099,7 +1158,7 @@ Begin{
                 $Nessus_XML_File = Join-Path $Nessus_File_Download_Location -ChildPath $_.Name
                 $markProcessed = "$($_.Name).processed"
                 Write-Host "Going to process $_ now."
-                Invoke-Import_Nessus_To_Elasticsearch -Nessus_XML_File $_ -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_API_Key
+                Invoke-Import_Nessus_To_Elasticsearch -Nessus_XML_File $_ -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_API_Key -Elasticsearch_Bulk_Import_Batch_Size $Elasticsearch_Bulk_Import_Batch_Size
                 $ending = Get-Date
                 $duration = $ending - $starting
                 $($Nessus_XML_File+'-PSNFscript-'+$duration | Out-File $(Resolve-Path parsedTime.txt).Path -Append)
