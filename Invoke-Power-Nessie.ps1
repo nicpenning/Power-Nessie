@@ -848,6 +848,7 @@ Begin{
         Write-Host "Processing file: $fileProcessed`nReport name: $reportName`nTotal hosts: $totalHostsFromScan`nBatch size for bulk imports: $Elasticsearch_Bulk_Import_Batch_Size" -ForegroundColor "Blue"
         $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.Count
         $hostCounter = 0
+        $importStartTime = Get-Date
         
         # Initialize global batch tracking across all hosts
         $globalBatchBuffer = [System.Collections.Generic.List[string]]::new()
@@ -858,7 +859,7 @@ Begin{
 
             # Set counter for progress bar
             $hostCounter++
-            Show-ProgressBar -Current $hostCounter -Total $totalHostsFromScan -Activity "Processing Hosts" -Color "Green"
+            Show-ProgressBar -Current $hostCounter -Total $totalHostsFromScan -Activity "Processing Hosts" -StartTime $importStartTime -Color "Green"
 
             foreach ($r in $n.ReportItem) {
                 foreach ($nHPTN_Item in $n.HostProperties.tag) {
@@ -1052,7 +1053,7 @@ Begin{
                     $globalBatchBuffer.Clear()
                     $globalDocCount = 0
                     $totalBatchesSent++
-                    Write-Host "Batch $totalBatchesSent sent to Elasticsearch ($($Elasticsearch_Bulk_Import_Batch_Size) documents)" -ForegroundColor Green
+                    Write-Host " | Batch $totalBatchesSent sent to Elasticsearch ($($Elasticsearch_Bulk_Import_Batch_Size) documents)" -ForegroundColor Green
                 }
                 
                 # Clean up variables
@@ -2293,7 +2294,7 @@ Begin{
             [int]$Current,
             [int]$Total,
             [string]$Activity = "Processing",
-            [datetime]$StartTime = (Get-Date),
+            [datetime]$StartTime,
             [int]$BarLength = 30,
             [ConsoleColor]$Color = "Cyan"
         )
