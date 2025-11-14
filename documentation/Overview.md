@@ -36,7 +36,7 @@ What would you like to do?
 
 Q. Quit
 
-Version 1.7.0
+Version X.X.X
 Enter your choice:
 ```
 

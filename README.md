@@ -30,8 +30,8 @@ With some careful setup of your Elastic stack and a little PowerShell, you can t
 The Power-Nessie project is a simplified way of taking .nessus files and ingesting them into Elasticsearch using PowerShell on Windows, Mac, or Linux.
 
 [Requirements](./documentation/Overview.md#%EF%B8%8F-requirements)
-* Functioning Elastic Stack (7.0+, 8.18.3/9.1.3 Latest Tested)
-* PowerShell 7.0+ (7.5.2 Latest Tested)
+* Functioning Elastic Stack (7.0+, 8.18.3/9.2.0 Latest Tested)
+* PowerShell 7.0+ (7.5.4 Latest Tested)
 * .nessus File(s) Exported (Power-Nessie can do this!)
 
 Script includes a Menu to help you use Power-Nessie for Automated or Manual Download and Ingest Capabilities - Check the [Docs](./documentation/Overview.md)!
@@ -55,7 +55,7 @@ What would you like to do?
 
 Q. Quit
 
-Version 1.7.0
+Version 1.8.0
 Enter your choice:
 ```
 
