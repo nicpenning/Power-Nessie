@@ -88,6 +88,7 @@ You can also use a JSON configuration file to set all the variables at once:
     "Elasticsearch_URL": "https://my-elastic-instance.local:9200",
     "Elasticsearch_Index_Name": "logs-nessus.vulnerability",
     "Elasticsearch_Api_Key": "<YourApiKey>",
+    "Elasticsearch_Bulk_Import_Batch_Size": 5000,
     "Nessus_Base_Comparison_Scan_Date": ["03/15/2024"],
     "Look_Back_Time_In_Days": 7,
     "Elasticsearch_Scan_Filter": ["scan1", "scan2"],

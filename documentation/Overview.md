@@ -120,6 +120,8 @@ Power-Nessie provides a robust, modular toolkit for integrating Nessus vulnerabi
 
 3. **Ingest Nessus Files**  
    Import scan data into Elasticsearch, either individually (Option 2) or in bulk (Option 3).
+   
+   Tip: You can tune the size of Elasticsearch _bulk_ requests with the `-Elasticsearch_Bulk_Import_Batch_Size` parameter (default 5000). Lower values reduce memory and CPU usage per request; higher values can improve throughput on well-provisioned clusters.
 
 4. **Export & Ingest Combined**  
    Automate full-cycle workflows (Option 4).

@@ -37,6 +37,7 @@
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
+    -Elasticsearch_Bulk_Import_Batch_Size 5000
     -Elasticsearch_Custom_Authentication_Header "ApiKey"
     -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,
@@ -116,6 +117,9 @@ Param (
     # Optionally customize the Elasticsearch Authorization ApiKey text to support third party security such as SearchGuard (Bearer). (default ApiKey) 
     [Parameter(Mandatory=$false)]
     $Elasticsearch_Custom_Authentication_Header = "ApiKey",
+    # Optionally set batch size for bulk imports (default 5000)
+    [Parameter(Mandatory=$false)]
+    $Elasticsearch_Bulk_Import_Batch_Size = 5000,
     # Add Kibana URL for setup. (default - https://127.0.0.1:5601)
     [Parameter(Mandatory=$false)]
     $Kibana_URL = "https://127.0.0.1:5601",
@@ -203,7 +207,7 @@ Begin{
     } else {
         Write-Host "Old version of PowerShell detected $($PSVersionTable.PSVersion.Major). Please install PowerShell 7+. Exiting." -ForegroundColor Red
         Write-Host "No scans found." -ForegroundColor Red
-        Exit
+        exit
     }
     # Check for configuration.json file to load configuration settings and populate them all. This will override any arguments passed in for the command line.
     if($Configuration_File_Path){
@@ -231,6 +235,7 @@ Begin{
             if($null -ne $configurationSettings.Elasticsearch_Index_Name){$Elasticsearch_Index_Name = $configurationSettings.Elasticsearch_Index_Name}
             if($null -ne $configurationSettings.Elasticsearch_Api_Key){$Elasticsearch_Api_Key = $configurationSettings.Elasticsearch_Api_Key}
             if($null -ne $configurationSettings.Elasticsearch_Custom_Authentication_Header){$Elasticsearch_Custom_Authentication_Header = $configurationSettings.Elasticsearch_Custom_Authentication_Header}
+            if($null -ne $configurationSettings.Elasticsearch_Bulk_Import_Batch_Size){$Elasticsearch_Bulk_Import_Batch_Size = $configurationSettings.Elasticsearch_Bulk_Import_Batch_Size}
             if($null -ne $configurationSettings.Kibana_URL){$Kibana_URL = $configurationSettings.Kibana_URL}
             if($null -ne $configurationSettings.Kibana_Export_PDF_URL){$Kibana_Export_PDF_URL = $configurationSettings.Kibana_Export_PDF_URL}
             if($null -ne $configurationSettings.Kibana_Export_CSV_URL){$Kibana_Export_CSV_URL = $configurationSettings.Kibana_Export_CSV_URL}
@@ -320,7 +325,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         Write-Host "Folders Found: "
         $folders.folders.Name | ForEach-Object {
@@ -355,7 +360,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
         if ($global:listOfScans) {
@@ -448,7 +453,7 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to retrieve folders after $maxRetries retries. Exiting." -ForegroundColor Red
-                return
+                exit
             }
             Write-Host "Folders Found: "
             $folders.folders.Name | ForEach-Object {
@@ -500,7 +505,7 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to retrieve scan status after $maxRetries retries. Exiting." -ForegroundColor Red
-                return
+                exit
             }
             $global:listOfScans = $global:currentNessusScanDataRaw.scans | Select-Object -Property Name,Status,creation_date,id
             if ($global:listOfScans) {
@@ -553,7 +558,7 @@ Begin{
                     } until ($reqOk -or $retryCount -ge $maxRetries)
                     if (-not $reqOk) {
                         Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
-                        return
+                        exit
                     }
                     $scanHistory.history | ForEach-Object {
                         if ($(convertToISO($_.creation_date) | Get-Date -format "dddd-d") -eq $getDate) {
@@ -602,7 +607,7 @@ Begin{
                         } until ($reqOk -or $retryCount -ge $maxRetries)
                         if (-not $reqOk) {
                             Write-Host "Failed to retrieve scan history after $maxRetries retries. Exiting." -ForegroundColor Red
-                            return
+                            exit
                         }
                         if ($Nessus_Export_All_Scan_History -eq "true"){
                             Write-Host "Historical scans found: $($scanHistory.history.count)"
@@ -729,7 +734,7 @@ Begin{
                     } until ($reqOk -or $retryCount -ge $maxRetries)
                     if (-not $reqOk) {
                         Write-Host "Failed to download scan after $maxRetries retries. Exiting." -ForegroundColor Red
-                        return
+                        exit
                     }                    
                     $exportComplete = 1
                     Write-Host "Export succeeded!" -ForegroundColor Green
@@ -782,7 +787,10 @@ Begin{
             $Elasticsearch_Index_Name,
             # Elasticsearch API Key
             [Parameter(Mandatory=$true)]
-            $Elasticsearch_API_Key
+            $Elasticsearch_API_Key,
+            # Batch size for bulk imports (default - 5000)
+            [Parameter(Mandatory=$false)]
+            $Elasticsearch_Bulk_Import_Batch_Size = 5000
         )
 
         $ErrorActionPreference = 'Stop'
@@ -837,7 +845,23 @@ Begin{
         "
         $fileProcessed = (Get-ChildItem $Nessus_XML_File).name
         $reportName = $nessus.NessusClientData_v2.Report.name
+        $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.count
+        Write-Host "Processing file: $fileProcessed`nReport name: $reportName`nTotal hosts: $totalHostsFromScan`nBatch size for bulk imports: $Elasticsearch_Bulk_Import_Batch_Size" -ForegroundColor "Blue"
+        $totalHostsFromScan = $nessus.NessusClientData_v2.Report.ReportHost.Count
+        $hostCounter = 0
+        $importStartTime = Get-Date
+        
+        # Initialize global batch tracking across all hosts
+        $globalBatchBuffer = [System.Collections.Generic.List[string]]::new()
+        $globalDocCount = 0
+        $totalBatchesSent = 0
+        
         foreach ($n in $nessus.NessusClientData_v2.Report.ReportHost) {
+
+            # Set counter for progress bar
+            $hostCounter++
+            Show-ProgressBar -Current $hostCounter -Total $totalHostsFromScan -Activity "Processing Hosts" -StartTime $importStartTime -Color "Green"
+
             foreach ($r in $n.ReportItem) {
                 foreach ($nHPTN_Item in $n.HostProperties.tag) {
                 # Get useful tag information from the report
@@ -993,7 +1017,46 @@ Begin{
 
                 } | ConvertTo-Json -Compress -Depth 5
                 
-                $hash += "{`"create`":{ } }`r`n$obj`r`n"
+                $globalBatchBuffer.Add("{`"create`":{ } }`r`n$obj`r`n")
+                $globalDocCount++
+                
+                # Check if batch size limit is reached
+                if ($globalDocCount -ge $Elasticsearch_Bulk_Import_Batch_Size) {
+                    # Send batch to Elasticsearch
+                    $ProgressPreference = 'SilentlyContinue'
+                    $hash = $globalBatchBuffer -join ""
+                    $numErrors = 0
+                    $maxRetries = 5
+                    $retryCount = 0
+                    do {
+                        $reqOk = $false
+                        try {
+                            $data = Invoke-RestMethod -Uri "$Elasticsearch_URL/$Elasticsearch_Index_Name/_bulk" -Method POST -ContentType "application/x-ndjson; charset=utf-8" -Body $hash -Headers $global:AuthenticationHeaders -SkipCertificateCheck -ConnectionTimeoutSeconds $Connection_Timeout -OperationTimeoutSeconds $Operation_Timeout
+                            $reqOk = $true
+                        } catch {
+                            if ($_.Exception.Message -match "timed out" -or $_.Exception.Message -match "timeout") {
+                                $numErrors += 1
+                                $retryCount += 1
+                                Write-Host "Request timed out, retry $numErrors" -ForegroundColor Yellow
+                                Start-Sleep -Seconds 1
+                            } else {
+                                Write-Host "Non-timeout error occurred: $($_.Exception.Message)" -ForegroundColor Red
+                                break
+                            }
+                        }
+                    } until ($reqOk -or $retryCount -ge $maxRetries)
+                    if (-not $reqOk) {
+                        Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
+                        exit
+                    }
+                    
+                    # Reset batch buffer and counters
+                    $globalBatchBuffer.Clear()
+                    $globalDocCount = 0
+                    $totalBatchesSent++
+                    Write-Host " | Batch $totalBatchesSent sent to Elasticsearch ($($Elasticsearch_Bulk_Import_Batch_Size) documents)" -ForegroundColor Green
+                }
+                
                 # Clean up variables
                 $ip = $null
                 $fqdn = $null
@@ -1012,9 +1075,12 @@ Begin{
                 $hostEnd = $null
 
             }
-            # Uncomment below to see the hash
-            #$hash
+        }
+        
+        # Send any remaining documents in the buffer
+        if ($globalDocCount -gt 0) {
             $ProgressPreference = 'SilentlyContinue'
+            $hash = $globalBatchBuffer -join ""
             $numErrors = 0
             $maxRetries = 5
             $retryCount = 0
@@ -1037,14 +1103,14 @@ Begin{
             } until ($reqOk -or $retryCount -ge $maxRetries)
             if (-not $reqOk) {
                 Write-Host "Failed to ingest data after $maxRetries retries. Exiting." -ForegroundColor Red
+                exit
             }
-
-            # Error checking
-            #$data.items | ConvertTo-Json -Depth 5
-
-            # Clean out $hash variable for later use
-            $hash = $null
+            
+            $totalBatchesSent++
+            Write-Host "Final batch $totalBatchesSent sent to Elasticsearch ($globalDocCount documents)" -ForegroundColor Green
         }
+        
+        Write-Host "Ingestion complete! Total batches sent: $totalBatchesSent" -ForegroundColor Green
     }
 
     function Invoke-Automate_Nessus_File_Imports {
@@ -1060,7 +1126,10 @@ Begin{
             $Elasticsearch_Index_Name,
             # Elasticsearch Api Key
             [Parameter(Mandatory=$true)]
-            $Elasticsearch_API_Key
+            $Elasticsearch_API_Key,
+            # Batch size for bulk imports (default - 5000)
+            [Parameter(Mandatory=$false)]
+            $Elasticsearch_Bulk_Import_Batch_Size = 5000
         )
 
         $ProcessedHashesPath = "ProcessedHashes.txt"
@@ -1091,7 +1160,7 @@ Begin{
                 $Nessus_XML_File = Join-Path $Nessus_File_Download_Location -ChildPath $_.Name
                 $markProcessed = "$($_.Name).processed"
                 Write-Host "Going to process $_ now."
-                Invoke-Import_Nessus_To_Elasticsearch -Nessus_XML_File $_ -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_API_Key
+                Invoke-Import_Nessus_To_Elasticsearch -Nessus_XML_File $_ -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_API_Key -Elasticsearch_Bulk_Import_Batch_Size $Elasticsearch_Bulk_Import_Batch_Size
                 $ending = Get-Date
                 $duration = $ending - $starting
                 $($Nessus_XML_File+'-PSNFscript-'+$duration | Out-File $(Resolve-Path parsedTime.txt).Path -Append)
@@ -1210,7 +1279,7 @@ Begin{
         } until ($reqOk -or $retryCount -ge $maxRetries)
         if (-not $reqOk) {
             Write-Host "Failed to retrieve PIT after $maxRetries retries. Exiting." -ForegroundColor Red
-            return
+            exit
         }
         $pitID = $pitSearch.id
 
@@ -2219,6 +2288,35 @@ Begin{
             $_
         }
     }
+
+    ### Progress Bar
+    function Show-ProgressBar {
+        param(
+            [int]$Current,
+            [int]$Total,
+            [string]$Activity = "Processing",
+            [datetime]$StartTime,
+            [int]$BarLength = 30,
+            [ConsoleColor]$Color = "Cyan"
+        )
+
+        if ($Total -eq 0) { return }
+
+        $percent = [math]::Floor(($Current / $Total) * 100)
+        $filledLength = [math]::Floor(($BarLength * $percent) / 100)
+        $bar = ('█' * $filledLength) + ('░' * ($BarLength - $filledLength))
+
+        $elapsed = (Get-Date) - $StartTime
+        $eta = if ($Current -gt 0) {
+            [timespan]::FromSeconds(($elapsed.TotalSeconds / $Current) * ($Total - $Current))
+        } else { [timespan]::Zero }
+
+        $progress = "$Activity`: [$bar] $percent% ($Current/$Total) | ETA: $($eta.ToString('hh\:mm\:ss'))"
+
+        Write-Host -NoNewline "`r$progress" -ForegroundColor $Color
+        if ($Current -eq $Total) { Write-Host "" }
+    }
+
 }
 
 Process {
@@ -2421,7 +2519,7 @@ Process {
                     $Nessus_File_Download_Location = Read-Host "Nessus File Download Location (default - Nessus Exports)"
                 }
 
-                Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key
+                Invoke-Automate_Nessus_File_Imports -Nessus_File_Download_Location $Nessus_File_Download_Location -Elasticsearch_URL $Elasticsearch_URL -Elasticsearch_Index_Name $Elasticsearch_Index_Name -Elasticsearch_API_Key $Elasticsearch_Api_Key -Elasticsearch_Bulk_Import_Batch_Size $Elasticsearch_Bulk_Import_Batch_Size
                 
                 if($Execute_Patch_Summarization -eq $true){
                     # Execute Patch Summarization after scans have been ingested
