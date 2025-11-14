@@ -37,6 +37,7 @@
     -Elasticsearch_URL "http://127.0.0.1:9200"
     -Elasticsearch_Index_Name "logs-nessus.vulnerability"
     -Elasticsearch_Api_Key "redacted"
+    -Elasticsearch_Bulk_Import_Batch_Size 5000
     -Elasticsearch_Custom_Authentication_Header "ApiKey"
     -Nessus_Base_Comparison_Scan_Date @("3/5/2024","3/6/2024")
     -Look_Back_Time_In_Days 7,

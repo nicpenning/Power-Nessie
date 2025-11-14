@@ -20,6 +20,7 @@ Imports a single Nessus `.nessus` XML file into your Elasticsearch cluster, maki
 | **Elasticsearch_Index_Name**          | `"logs-nessus.vulnerability"`          | Elasticsearch index to store Nessus scan results.                                                   |
 | **Elasticsearch_Api_Key**             | `$null`                                | Elasticsearch API key for authentication.                                                           |
 | **Elasticsearch_Custom_Authentication_Header** | `"ApiKey"`                    | Custom text for the Elasticsearch authentication header (e.g., `"Bearer"` for SearchGuard).         |
+| **Elasticsearch_Bulk_Import_Batch_Size** | `5000`                                 | Number of documents to send in each Elasticsearch _bulk_ request. Lower values reduce memory/CPU at the cost of more requests; higher values increase throughput but use more memory. |
 | **Connection_Timeout**                | `0`                                    | How long to wait for a connection to start (seconds).                                               |
 | **Operation_Timeout**                 | `0`                                    | How long to wait for connection data (seconds).                                                     |
 | **Execute_Patch_Summarization**       | `"false"`                              | Set to `"true"` to enable Patch Summarization after ingest.                                         |
@@ -65,6 +66,15 @@ Imports a single Nessus `.nessus` XML file into your Elasticsearch cluster, maki
   -Look_Back_Time_In_Days 7
 ```
 
+**Ingest a scan file with a custom bulk import batch size (e.g. 2000 documents per bulk request):**
+
+```powershell
+.\Invoke-PowerNessie.ps1 `
+  -Nessus_XML_File "C:\NessusExports\scan1.nessus" `
+  -Elasticsearch_Api_Key "<YourApiKey>" `
+  -Elasticsearch_Bulk_Import_Batch_Size 2000
+```
+
 **Filter Patch Summarization to only include selected scan names:**
 
 ```powershell
@@ -86,6 +96,7 @@ You can also use a JSON configuration file to set all the variables at once:
     "Elasticsearch_URL": "https://my-elastic-instance.local:9200",
     "Elasticsearch_Index_Name": "logs-nessus.vulnerability",
     "Elasticsearch_Api_Key": "<YourApiKey>",
+    "Elasticsearch_Bulk_Import_Batch_Size": 5000,
     "Execute_Patch_Summarization": "true",
     "Nessus_Base_Comparison_Scan_Date": ["03/15/2024"],
     "Look_Back_Time_In_Days": 7,
