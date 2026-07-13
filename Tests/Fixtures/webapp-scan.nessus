@@ -1,0 +1,51 @@
+<?xml version="1.0" ?>
+<NessusClientData_v2>
+  <Report name="WebApp Scan 2026">
+    <!-- ReportHost name is the scanned URL, not an IP address.
+         HostProperties are absent – no host-ip, hostname, HOST_START_TIMESTAMP, etc. -->
+    <ReportHost name="https://www.example.com/my-webapp/">
+      <HostProperties>
+      </HostProperties>
+      <!-- Finding with parseable JSON plugin_output containing url + output keys -->
+      <ReportItem port="443" svc_name="www" protocol="tcp" severity="3"
+                  pluginID="114682"
+                  pluginName="Next.js 14.x &lt; 14.2.25 Authorization Bypass"
+                  pluginFamily="Web Applications">
+        <age_of_vuln>365 - 730 days</age_of_vuln>
+        <cpe>cpe:2.3:a:vercel:next.js:*:*:*:*:*:*:*:*</cpe>
+        <cvss3_base_score>9.1</cvss3_base_score>
+        <cve>CVE-2025-29927</cve>
+        <cvss3_vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N</cvss3_vector>
+        <cvssV3_impactScore>5.2</cvssV3_impactScore>
+        <cvss4_base_score>9.4</cvss4_base_score>
+        <cvss_base_score>9.0</cvss_base_score>
+        <cvss_vector>CVSS2#AV:N/AC:L/Au:N/C:C/I:C/A:N</cvss_vector>
+        <description>The version of Next.js installed on the remote host is prior to 14.2.25. It is, therefore, affected by Authorization Bypass if the authorization check occurs in middleware.</description>
+        <epss_score>0.9962</epss_score>
+        <exploit_available>true</exploit_available>
+        <exploit_code_maturity>PoC</exploit_code_maturity>
+        <exploitability_ease>Exploits are available</exploitability_ease>
+        <plugin_publication_date>2025/03/24</plugin_publication_date>
+        <plugin_modification_date>2025/03/24</plugin_modification_date>
+        <plugin_type>version_based</plugin_type>
+        <risk_factor>High</risk_factor>
+        <see_also>https://nextjs.org/blog/cve-2025-29927</see_also>
+        <solution>Upgrade to Next.js version 14.2.25 or later.</solution>
+        <synopsis>Next.js 14.x &lt; 14.2.25 Authorization Bypass</synopsis>
+        <plugin_output>{"output":"Current Version: 14.2.15\nFixed Version:   14.2.25\nDetected technology URL: https://www.example.com/my-webapp/","url":"https://www.example.com/my-webapp/"}</plugin_output>
+      </ReportItem>
+      <!-- Finding with non-JSON plain-text plugin_output -->
+      <ReportItem port="443" svc_name="www" protocol="tcp" severity="2"
+                  pluginID="99999"
+                  pluginName="Example Info Plugin"
+                  pluginFamily="Web Applications">
+        <description>An informational finding with plain-text output.</description>
+        <risk_factor>Medium</risk_factor>
+        <synopsis>Example informational finding</synopsis>
+        <solution>No action required.</solution>
+        <plugin_output>This is plain text, not JSON.</plugin_output>
+        <plugin_publication_date>2025/01/01</plugin_publication_date>
+      </ReportItem>
+    </ReportHost>
+  </Report>
+</NessusClientData_v2>

@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<NessusClientData_v2>
+  <Report name="Regular Vuln Scan 2026">
+    <!-- Standard host-based vulnerability scan with full host properties -->
+    <ReportHost name="192.168.1.100">
+      <HostProperties>
+        <tag name="host-ip">192.168.1.100</tag>
+        <tag name="hostname">myserver.example.com</tag>
+        <tag name="HOST_START_TIMESTAMP">1720000000</tag><!-- 2024-07-03T09:46:40 UTC -->
+        <tag name="HOST_END_TIMESTAMP">1720001000</tag><!-- 2024-07-03T10:03:20 UTC -->
+        <tag name="operating-system">Linux Kernel 5.15</tag>
+        <tag name="Credentialed_Scan">true</tag>
+      </HostProperties>
+      <ReportItem port="22" svc_name="ssh" protocol="tcp" severity="2"
+                  pluginID="70657"
+                  pluginName="SSH Weak Algorithms Supported"
+                  pluginFamily="General">
+        <description>The remote SSH server is configured to allow weak encryption algorithms or no algorithm at all.</description>
+        <cve>CVE-2013-5028</cve>
+        <risk_factor>Medium</risk_factor>
+        <synopsis>The remote SSH server is configured to allow weak encryption algorithms.</synopsis>
+        <solution>Contact the vendor or consult product documentation to disable CBC mode cipher encryption, and enable CTR or GCM cipher mode encryption.</solution>
+        <plugin_output>The following weak client-to-server encryption algorithms are supported: arcfour</plugin_output>
+        <plugin_publication_date>2013/10/25</plugin_publication_date>
+        <plugin_modification_date>2023/01/12</plugin_modification_date>
+        <plugin_type>remote</plugin_type>
+        <see_also>https://tools.ietf.org/html/rfc4253</see_also>
+      </ReportItem>
+      <!-- Finding where the CVE identifier is in cvss_score_source, not in a <cve> element -->
+      <ReportItem port="443" svc_name="https" protocol="tcp" severity="3"
+                  pluginID="189760"
+                  pluginName="OpenSSL 3.0.x &lt; 3.0.14 Multiple Vulnerabilities"
+                  pluginFamily="General">
+        <description>According to its self-reported version number, the remote host has an installation of OpenSSL that is affected by multiple vulnerabilities.</description>
+        <cvss3_base_score>7.5</cvss3_base_score>
+        <cvss3_vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</cvss3_vector>
+        <cvss_score_source>CVE-2024-2511</cvss_score_source>
+        <risk_factor>High</risk_factor>
+        <synopsis>The remote host is running an unsupported version of OpenSSL.</synopsis>
+        <solution>Upgrade to OpenSSL 3.0.14 or later.</solution>
+        <plugin_output>OpenSSL version 3.0.7 detected.</plugin_output>
+        <plugin_publication_date>2024/01/30</plugin_publication_date>
+        <plugin_type>remote</plugin_type>
+      </ReportItem>
+    </ReportHost>
+  </Report>
+</NessusClientData_v2>
